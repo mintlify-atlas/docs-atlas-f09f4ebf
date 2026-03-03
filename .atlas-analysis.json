@@ -1,0 +1,130 @@
+{
+  "projectType": "infrastructure",
+  "projectName": "Hakim",
+  "projectDescription": "Universal Coder templates and DevContainer images for AI-assisted development across multiple language stacks.",
+  "theme": "aspen",
+  "primaryColor": "#0891b2",
+  "lightColor": null,
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "architecture/overview",
+              "architecture/devcontainer-images",
+              "architecture/coder-templates"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/proxmox",
+              "deployment/building-images"
+            ]
+          },
+          {
+            "group": "Operations",
+            "pages": [
+              "operations/resilient-ssh",
+              "operations/opencode-integration",
+              "operations/workspace-management"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/adding-features",
+              "guides/creating-variants",
+              "guides/customizing-templates"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Image Variants",
+            "pages": [
+              "reference/images/base",
+              "reference/images/php",
+              "reference/images/dotnet",
+              "reference/images/rust",
+              "reference/images/js",
+              "reference/images/elixir",
+              "reference/images/android"
+            ]
+          },
+          {
+            "group": "DevContainer Features",
+            "pages": [
+              "reference/features/overview",
+              "reference/features/nodejs",
+              "reference/features/rust",
+              "reference/features/dotnet",
+              "reference/features/bun",
+              "reference/features/elixir"
+            ]
+          },
+          {
+            "group": "Terraform Modules",
+            "pages": [
+              "reference/modules/opencode",
+              "reference/modules/et",
+              "reference/modules/git-commit-signing"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "reference/configuration/template-parameters",
+              "reference/configuration/environment-variables"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Multi-language DevContainer images (PHP, .NET, Rust, JavaScript, Elixir, Android)",
+    "Coder workspace templates with Terraform",
+    "Resilient SSH connections via EternalTerminal",
+    "OpenCode AI agent integration",
+    "Composable DevContainer features",
+    "Docker and Proxmox deployment support"
+  ],
+  "publicApiSurface": [
+    "hakim-base image",
+    "hakim-php image",
+    "hakim-dotnet image",
+    "hakim-rust image",
+    "hakim-js image",
+    "hakim-elixir image",
+    "hakim-android image",
+    "coder/templates/hakim Terraform template",
+    "coder/templates/hakim-proxmox Terraform template",
+    "coder/modules/opencode Terraform module",
+    "coder/modules/et Terraform module",
+    "coder/modules/git-commit-signing Terraform module",
+    "devcontainer-feature: nodejs",
+    "devcontainer-feature: rust",
+    "devcontainer-feature: dotnet",
+    "devcontainer-feature: bun",
+    "devcontainer-feature: elixir",
+    "devcontainer-feature: phoenix",
+    "devcontainer-feature: laravel"
+  ]
+}

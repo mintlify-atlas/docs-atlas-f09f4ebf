@@ -1,0 +1,352 @@
+---
+title: Template parameters
+description: Configure Hakim workspaces with Coder template parameters
+---
+
+Hakim templates accept a comprehensive set of parameters to customize workspace behavior, environment setup, and tooling configuration. All parameters are defined in the Terraform template and can be set during workspace creation or updated later if marked as `mutable`.
+
+## Environment selection
+
+### image_variant
+
+Select the programming language environment for your workspace.
+
+<ParamField path="image_variant" type="string" default="base">
+  The Docker image variant to use for the workspace. Each variant comes with pre-configured tooling for specific development stacks.
+
+  **Available options:**
+  - `base` - Minimal image with only essential tools
+  - `php` - Laravel with PHP 8.4 and related tools
+  - `dotnet` - .NET 10.0 with .NET SDK and related tools
+  - `js` - Node.js (LTS), Bun (Latest), and related tools
+  - `rust` - Rust (Stable) with cargo, rust-analyzer, etc.
+  - `android` - Android SDK, Java 17, NDK r29, and modern build tooling
+  - `elixir` - Elixir, Phoenix, Node.js, Bun, PostgreSQL client tools
+  - `custom` - Specify a custom image URL
+</ParamField>
+
+### image_url
+
+<ParamField path="image_url" type="string" default="">
+  Custom Docker image URL. Only available when `image_variant` is set to `custom`. This parameter is mutable and allows you to specify any OCI-compatible container image.
+</ParamField>
+
+## Git configuration
+
+### git_url
+
+<ParamField path="git_url" type="string" default="">
+  Repository URL to auto-clone on workspace startup. Supports any Git-compatible URL (HTTPS or SSH). The repository will be cloned to `/home/coder/<repo-name>` and set as the default working directory.
+  
+  **Mutable:** Yes
+</ParamField>
+
+### git_user_name
+
+<ParamField path="git_user_name" type="string" default="">
+  Set the global `git user.name` configuration for commits.
+  
+  **Mutable:** Yes
+</ParamField>
+
+### git_user_email
+
+<ParamField path="git_user_email" type="string" default="">
+  Set the global `git user.email` configuration for commits.
+  
+  **Mutable:** Yes
+</ParamField>
+
+### git_global_gitconfig
+
+<ParamField path="git_global_gitconfig" type="string">
+  Raw gitconfig entries to inject into the global Git configuration. This is a textarea field that accepts multi-line gitconfig syntax.
+  
+  **Mutable:** Yes
+  
+  **Default includes:**
+  - Common Git aliases (P, b, c, co, d, s, sw, etc.)
+  - Branch auto-rebase
+  - Core editor set to `nvim`
+  - GitHub credential helper integration via `gh`
+  - Git LFS filter configuration
+  - Default branch set to `main`
+</ParamField>
+
+### git_credential_helper
+
+<ParamField path="git_credential_helper" type="string" default="store">
+  Git credential storage mechanism. Set to `libsecret` to enable git-credential-libsecret for encrypted credential storage, or `store` for plain-text storage.
+  
+  **Mutable:** Yes
+</ParamField>
+
+## OpenCode configuration
+
+### opencode_auth
+
+<ParamField path="opencode_auth" type="string" default="{}">
+  OpenCode authentication JSON. Paste the content of `~/.local/share/opencode/auth.json` from your local machine for non-interactive authentication.
+  
+  **Input masked:** Yes  
+  **Mutable:** Yes
+</ParamField>
+
+### opencode_config
+
+<ParamField path="opencode_config" type="string" default="{}">
+  OpenCode JSON configuration. See [OpenCode config documentation](https://opencode.ai/docs/config/) for available options.
+  
+  **Mutable:** Yes
+</ParamField>
+
+## OpenChamber configuration
+
+### openchamber_ui_password
+
+<ParamField path="openchamber_ui_password" type="string" default="">
+  Optional password for the OpenChamber UI. When set, the web interface will require authentication.
+  
+  **Input masked:** Yes  
+  **Mutable:** Yes
+</ParamField>
+
+### openchamber_reuse_opencode
+
+<ParamField path="openchamber_reuse_opencode" type="boolean" default="true">
+  When enabled, OpenChamber connects to an external OpenCode server instead of starting its own. All connections share the same OpenCode state.
+  
+  **Mutable:** Yes
+</ParamField>
+
+### openchamber_opencode_port
+
+<ParamField path="openchamber_opencode_port" type="number" default="4096">
+  Port of the external OpenCode server to connect to. Only used when `openchamber_reuse_opencode` is enabled.
+  
+  **Mutable:** Yes
+</ParamField>
+
+## OpenClaw node configuration
+
+### enable_openclaw_node
+
+<ParamField path="enable_openclaw_node" type="boolean" default="false">
+  Run an OpenClaw node host in this workspace and connect it to a remote gateway bridge.
+</ParamField>
+
+### openclaw_bridge_host
+
+<ParamField path="openclaw_bridge_host" type="string" default="">
+  Remote gateway bridge host (LAN/tailnet). Required when `enable_openclaw_node` is true.
+  
+  **Mutable:** Yes
+</ParamField>
+
+### openclaw_bridge_port
+
+<ParamField path="openclaw_bridge_port" type="number" default="18790">
+  Remote gateway bridge port.
+  
+  **Mutable:** Yes
+</ParamField>
+
+### openclaw_bridge_tls
+
+<ParamField path="openclaw_bridge_tls" type="boolean" default="false">
+  Use TLS when connecting to the bridge.
+</ParamField>
+
+### openclaw_bridge_tls_fingerprint
+
+<ParamField path="openclaw_bridge_tls_fingerprint" type="string" default="">
+  Optional SHA256 fingerprint to pin the bridge certificate for enhanced security.
+  
+  **Mutable:** Yes
+</ParamField>
+
+### openclaw_gateway_ws_url
+
+<ParamField path="openclaw_gateway_ws_url" type="string" default="">
+  Optional WebSocket URL (e.g., `ws://host:18789`) used only for auto-approving pairing.
+  
+  **Mutable:** Yes
+</ParamField>
+
+### openclaw_gateway_token
+
+<ParamField path="openclaw_gateway_token" type="string" default="">
+  Optional gateway token used only for auto-approving pairing.
+  
+  **Input masked:** Yes  
+  **Mutable:** Yes
+</ParamField>
+
+## AI and task configuration
+
+### system_prompt
+
+<ParamField path="system_prompt" type="string" default="">
+  System prompt for the AI agent. This prompt provides context and instructions to guide the AI's behavior in your workspace.
+  
+  **Mutable:** Yes
+</ParamField>
+
+### preview_port
+
+<ParamField path="preview_port" type="number" default="3000">
+  The port where your web application runs for preview in Coder Tasks UI. The preview app automatically creates a subdomain-based URL.
+  
+  **Mutable:** Yes
+</ParamField>
+
+### setup_script
+
+<ParamField path="setup_script" type="string" default="">
+  Shell script to run before starting the Coder agent. Use this to clone repositories, start development servers, or perform custom initialization tasks.
+  
+  **Mutable:** No (set at workspace creation only)
+</ParamField>
+
+## Environment variables
+
+### user_env
+
+<ParamField path="user_env" type="string" default="{}">
+  JSON object of environment variables to inject into the workspace. These variables are available in all shell sessions.
+  
+  **Example:**
+  ```json
+  {
+    "NODE_ENV": "development",
+    "API_URL": "https://api.example.com"
+  }
+  ```
+  
+  **Mutable:** Yes
+</ParamField>
+
+### secret_env
+
+<ParamField path="secret_env" type="string" default="{}">
+  JSON object for secret environment variables. Input is masked in the UI for security.
+  
+  **Example:**
+  ```json
+  {
+    "DATABASE_PASSWORD": "supersecret",
+    "API_KEY": "sk-1234567890"
+  }
+  ```
+  
+  **Input masked:** Yes  
+  **Mutable:** Yes
+</ParamField>
+
+## Feature toggles
+
+### enable_coder_login
+
+<ParamField path="enable_coder_login" type="boolean" default="true">
+  Auto-login to Coder in the workspace shell, providing seamless access to Coder CLI commands.
+</ParamField>
+
+### enable_git_commit_signing
+
+<ParamField path="enable_git_commit_signing" type="boolean" default="true">
+  Use Coder SSH key for Git SSH commit signing. Automatically configures Git to sign commits with your Coder-managed SSH key.
+</ParamField>
+
+### enable_zed
+
+<ParamField path="enable_zed" type="boolean" default="true">
+  Show Zed editor launcher app in workspace applications list.
+</ParamField>
+
+### enable_tmux
+
+<ParamField path="enable_tmux" type="boolean" default="true">
+  Install and configure tmux with persistence plugins for resilient terminal sessions.
+</ParamField>
+
+### tmux_sessions
+
+<ParamField path="tmux_sessions" type="string" default="default">
+  Comma-separated list of tmux session names to create (e.g., `default,dev,ops`). Only available when `enable_tmux` is true.
+  
+  **Mutable:** Yes
+</ParamField>
+
+### tmux_config
+
+<ParamField path="tmux_config" type="string">
+  Custom `~/.tmux.conf` content. Leave empty to use template defaults. Only available when `enable_tmux` is true.
+  
+  **Mutable:** Yes
+</ParamField>
+
+### enable_et
+
+<ParamField path="enable_et" type="boolean" default="true">
+  Run loopback etserver (port 2022) and hardened sshd (port 2244) for resilient SSH sessions via EternalTerminal. See [ET module documentation](/reference/modules/et) for details.
+</ParamField>
+
+## Vault integration
+
+### enable_vault
+
+<ParamField path="enable_vault" type="boolean" default="false">
+  Install and authenticate HashiCorp Vault CLI via GitHub token.
+</ParamField>
+
+### vault_addr
+
+<ParamField path="vault_addr" type="string" default="http://vault:8200">
+  Vault server URL. Only available when `enable_vault` is true.
+  
+  **Mutable:** Yes
+</ParamField>
+
+### vault_github_auth_id
+
+<ParamField path="vault_github_auth_id" type="string" default="">
+  GitHub auth mount path or role used for Vault authentication. Only available when `enable_vault` is true.
+  
+  **Mutable:** Yes
+</ParamField>
+
+## Resource limits
+
+### enable_resource_limits
+
+<ParamField path="enable_resource_limits" type="boolean" default="false">
+  Configure CPU and memory limits for the container. When disabled, the container has unlimited access to host resources.
+</ParamField>
+
+### container_memory
+
+<ParamField path="container_memory" type="number" default="0">
+  Hard memory limit in megabytes. Set to `0` for unlimited. Only available when `enable_resource_limits` is true.
+  
+  **Mutable:** Yes
+</ParamField>
+
+### container_cpus
+
+<ParamField path="container_cpus" type="string" default="0">
+  CPU cores limit (e.g., `2` or `1.5`). Set to `0` for unlimited. Only available when `enable_resource_limits` is true.
+  
+  **Mutable:** Yes
+</ParamField>
+
+## Default environment variables
+
+The template automatically sets these environment variables in all workspaces:
+
+| Variable | Value | Description |
+| :--- | :--- | :--- |
+| `MIX_HOME` | `/home/coder/.mix` | Elixir Mix home directory |
+| `HEX_HOME` | `/home/coder/.hex` | Hex package manager home |
+| `MIX_ARCHIVES` | `/home/coder/.mix/archives` | Mix archives directory |
+
+These defaults are merged with `user_env` and `secret_env`, with user-provided values taking precedence.

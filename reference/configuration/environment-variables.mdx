@@ -1,0 +1,295 @@
+---
+title: Environment variables
+description: Environment variables used in Hakim workspaces and templates
+---
+
+Hakim workspaces use environment variables for configuration, authentication, and runtime behavior. Variables are set through template parameters, agent configuration, or injected directly into containers.
+
+## Coder agent variables
+
+These variables are automatically set by the Coder agent and bootstrap scripts:
+
+### CODER_AGENT_TOKEN
+
+Authentication token for the Coder agent. Automatically injected by the template into the container environment.
+
+**Set by:** Template (main.tf:1007)  
+**Used in:** bootstrap.sh, container startup
+
+### CODER_AGENT_URL
+
+URL for the Coder agent to connect to the control plane. Automatically replaced with `host.docker.internal` when running on localhost to ensure connectivity from inside containers.
+
+**Set by:** Template (main.tf:1008)  
+**Used in:** bootstrap.sh, agent initialization  
+**Default:** Workspace access URL
+
+### CODER_AGENT_AUTH
+
+Authentication method for the agent.
+
+**Set by:** bootstrap.sh:80  
+**Default:** `token`
+
+### ARCH
+
+System architecture of the provisioner.
+
+**Set by:** Template (main.tf:1009)  
+**Values:** `amd64`, `arm64`, etc.  
+**Used in:** Binary downloads, image selection
+
+## OpenCode module variables
+
+These variables configure the OpenCode AI assistant integration:
+
+### ARG_OPENCODE_VERSION
+
+Version of OpenCode to install.
+
+**Set by:** opencode module (main.tf:165)  
+**Default:** `1.2.15`  
+**Used in:** OpenCode installation script
+
+### ARG_MCP_APP_STATUS_SLUG
+
+Slug identifier for MCP app status reporting.
+
+**Set by:** opencode module (main.tf:166)  
+**Default:** `opencode`
+
+### ARG_INSTALL_OPENCODE
+
+Whether to install OpenCode binary.
+
+**Set by:** opencode module (main.tf:167)  
+**Default:** `true`
+
+### ARG_REPORT_TASKS
+
+Enable task reporting to Coder UI via MCP.
+
+**Set by:** opencode module (main.tf:168, 182)  
+**Default:** `true`
+
+### ARG_WORKDIR
+
+Working directory for OpenCode.
+
+**Set by:** opencode module (main.tf:169, 179)  
+**Default:** Project directory (from git clone or `/home/coder/project`)
+
+### ARG_AUTH_JSON
+
+Base64-encoded OpenCode authentication JSON.
+
+**Set by:** opencode module (main.tf:170)  
+**Source:** `opencode_auth` template parameter
+
+### ARG_OPENCODE_CONFIG
+
+Base64-encoded OpenCode configuration JSON.
+
+**Set by:** opencode module (main.tf:171)  
+**Source:** `opencode_config` template parameter
+
+### ARG_PRE_INSTALL_SCRIPT
+
+Base64-encoded script to run before OpenCode installation.
+
+**Set by:** opencode module (main.tf:172)  
+**Optional:** Yes
+
+### ARG_POST_INSTALL_SCRIPT
+
+Base64-encoded script to run after OpenCode installation.
+
+**Set by:** opencode module (main.tf:173)  
+**Source:** `setup_script` template parameter
+
+### ARG_AI_PROMPT
+
+Base64-encoded initial task prompt for OpenCode.
+
+**Set by:** opencode module (main.tf:180)  
+**Source:** Combined `system_prompt` and task prompt
+
+### ARG_SESSION_ID
+
+Session ID to continue a previous OpenCode session.
+
+**Set by:** opencode module (main.tf:181)  
+**Optional:** Yes
+
+### ARG_CONTINUE
+
+Whether to continue the last OpenCode session.
+
+**Set by:** opencode module (main.tf:183)  
+**Default:** `false`
+
+### ARG_PORT
+
+Port for the OpenCode web server.
+
+**Set by:** opencode module (main.tf:184)  
+**Default:** `4096`
+
+### ARG_HOSTNAME
+
+Hostname for the OpenCode web server to bind to.
+
+**Set by:** opencode module (main.tf:185)  
+**Default:** `0.0.0.0`
+
+## Git configuration variables
+
+These variables configure Git settings during workspace initialization:
+
+### ARG_GIT_USER_NAME
+
+Base64-encoded Git user name.
+
+**Set by:** git_setup script (main.tf:816)  
+**Source:** `git_user_name` template parameter  
+**Used in:** setup-git.sh:4
+
+### ARG_GIT_USER_EMAIL
+
+Base64-encoded Git user email.
+
+**Set by:** git_setup script (main.tf:817)  
+**Source:** `git_user_email` template parameter  
+**Used in:** setup-git.sh:5
+
+### ARG_GIT_GLOBAL_GITCONFIG
+
+Base64-encoded raw gitconfig entries.
+
+**Set by:** git_setup script (main.tf:818)  
+**Source:** `git_global_gitconfig` template parameter  
+**Used in:** setup-git.sh:6
+
+### ARG_GIT_CREDENTIAL_HELPER
+
+Git credential helper type.
+
+**Set by:** git_setup script (main.tf:819)  
+**Source:** `git_credential_helper` template parameter  
+**Default:** `store`  
+**Values:** `store`, `libsecret`  
+**Used in:** setup-git.sh:7
+
+## User-defined environment variables
+
+These variables are injected from template parameters:
+
+### Custom variables (user_env)
+
+Any environment variables defined in the `user_env` JSON parameter are injected into the container. These are merged with default environment variables.
+
+**Set by:** Template (main.tf:537, 1010)  
+**Source:** `user_env` template parameter  
+**Format:** JSON object
+
+### Secret variables (secret_env)
+
+Sensitive environment variables defined in the `secret_env` JSON parameter. These are handled identically to `user_env` but masked in the UI.
+
+**Set by:** Template (main.tf:538, 1010)  
+**Source:** `secret_env` template parameter  
+**Format:** JSON object
+
+## Default workspace variables
+
+These environment variables are set by default in all Hakim workspaces:
+
+### MIX_HOME
+
+Elixir Mix home directory.
+
+**Value:** `/home/coder/.mix`  
+**Set by:** Template (main.tf:540)
+
+### HEX_HOME
+
+Hex package manager home directory.
+
+**Value:** `/home/coder/.hex`  
+**Set by:** Template (main.tf:541)
+
+### MIX_ARCHIVES
+
+Mix archives directory.
+
+**Value:** `/home/coder/.mix/archives`  
+**Set by:** Template (main.tf:542)
+
+## Bootstrap and container variables
+
+### ACCESS_URL
+
+URL for downloading the Coder agent binary.
+
+**Used in:** bootstrap.sh:20  
+**Derived from:** CODER_AGENT_URL
+
+### BINARY_DIR
+
+Directory for Coder agent binary.
+
+**Used in:** bootstrap.sh:19  
+**Default:** Temporary directory
+
+### USE_CAP_NET_ADMIN
+
+Whether to set CAP_NET_ADMIN capability on the agent binary for improved network performance.
+
+**Used in:** bootstrap.sh:61  
+**Optional:** Yes
+
+### AUTH_TYPE
+
+Authentication type for the agent.
+
+**Used in:** bootstrap.sh:80  
+**Default:** `token`
+
+## Variable precedence
+
+When multiple sources define environment variables, they are merged in this order (later overwrites earlier):
+
+1. Default environment variables (`MIX_HOME`, `HEX_HOME`, `MIX_ARCHIVES`)
+2. Variables from `user_env` parameter
+3. Variables from `secret_env` parameter
+4. System variables (`CODER_AGENT_TOKEN`, `CODER_AGENT_URL`, `ARCH`)
+
+This is implemented in main.tf:544:
+
+```hcl
+local.combined_env = merge(local.default_env, local.user_env, local.secret_env)
+```
+
+## Setting custom variables
+
+To add custom environment variables to your workspace:
+
+1. **Via user_env parameter** - For non-sensitive variables:
+   ```json
+   {
+     "NODE_ENV": "development",
+     "LOG_LEVEL": "debug"
+   }
+   ```
+
+2. **Via secret_env parameter** - For sensitive data:
+   ```json
+   {
+     "DATABASE_URL": "postgresql://user:pass@host:5432/db",
+     "API_SECRET": "your-secret-here"
+   }
+   ```
+
+3. **In shell profile** - Add to `~/.bashrc` or `~/.profile` for session-specific variables
+
+4. **Via setup_script** - Export variables in the setup script for initialization-time configuration

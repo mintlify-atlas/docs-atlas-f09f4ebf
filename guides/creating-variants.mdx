@@ -1,0 +1,457 @@
+---
+title: Creating variants
+description: Build custom image variants by composing DevContainer features
+---
+
+Image variants are specialized environments built by composing features. Hakim ships with variants for PHP, .NET, Rust, JavaScript, Elixir, and Android. This guide shows you how to create your own.
+
+## Understanding variants
+
+Each variant is a `devcontainer.json` that:
+- Inherits from the base/tooling image
+- References specific features to install
+- Configures VSCode extensions and settings
+- Defines the container user
+
+All variants live in `devcontainers/.devcontainer/images/<variant>/.devcontainer/`.
+
+## Existing variants
+
+Hakim includes these production variants:
+
+| Variant | Features | Use case |
+|---------|----------|----------|
+| `base` | Minimal tooling | Custom setups |
+| `php` | PHP 8.4, Laravel, PIE extensions | Laravel development |
+| `dotnet` | .NET 9.0 + 10.0-preview | .NET Web APIs |
+| `js` | Node.js, Bun | JavaScript/TypeScript projects |
+| `rust` | Rust stable toolchain | Rust applications |
+| `elixir` | Elixir, Phoenix, PostgreSQL tools | Phoenix applications |
+| `android` | Android SDK, NDK, Java | Android development |
+
+## Creating a simple variant
+
+Let's create a Python variant as an example.
+
+<Steps>
+  <Step title="Create the variant directory">
+    Create the directory structure:
+
+    ```bash
+    mkdir -p devcontainers/.devcontainer/images/python/.devcontainer
+    ```
+  </Step>
+
+  <Step title="Create the devcontainer.json">
+    Add the variant configuration:
+
+    ```json devcontainers/.devcontainer/images/python/.devcontainer/devcontainer.json
+    {
+      "name": "Hakim Python",
+      "image": "ghcr.io/shekohex/hakim-tooling:latest",
+      "build": {
+        "args": {
+          "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+        }
+      },
+      "features": {
+        "ghcr.io/devcontainers/features/python:1": {
+          "version": "3.13",
+          "installTools": true
+        },
+        "../../../features/src/lazyvim": {}
+      },
+      "customizations": {
+        "vscode": {
+          "extensions": [
+            "ms-python.python",
+            "ms-python.vscode-pylance",
+            "charliermarsh.ruff"
+          ]
+        }
+      },
+      "remoteUser": "coder"
+    }
+    ```
+
+    **Key fields:**
+    - `image` - Always inherit from `hakim-tooling:latest` (built from `hakim-base`)
+    - `features` - Use relative paths (`../../../features/src/<name>`) for local features
+    - `customizations.vscode` - Add language-specific extensions
+    - `remoteUser` - Always use `coder` for consistency
+  </Step>
+
+  <Step title="Build the variant">
+    The build script automatically discovers and builds all variants:
+
+    ```bash
+    ./scripts/build.sh
+    ```
+
+    This will:
+    1. Build the base image (`hakim-base`)
+    2. Build the tooling image (`hakim-tooling`)
+    3. Build all variants including your new `python` variant
+    4. Tag images as `ghcr.io/shekohex/hakim-python:latest`
+  </Step>
+
+  <Step title="Test the variant locally">
+    Run the image to verify it works:
+
+    ```bash
+    docker run -it --rm ghcr.io/shekohex/hakim-python:latest bash
+    ```
+
+    Inside the container:
+
+    ```bash
+    python --version
+    pip --version
+    ```
+  </Step>
+</Steps>
+
+## Real-world examples
+
+### Minimal JavaScript variant
+
+The `js` variant inherits Node.js and Bun from the tooling layer:
+
+```json devcontainers/.devcontainer/images/js/.devcontainer/devcontainer.json
+{
+  "name": "Hakim JS (Node.js + Bun)",
+  "image": "ghcr.io/shekohex/hakim-tooling:latest",
+  "build": {
+    "args": {
+      "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+    }
+  },
+  "features": {
+    "../../../features/src/lazyvim": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "oven.bun-vscode"
+      ]
+    }
+  },
+  "remoteUser": "coder"
+}
+```
+
+<Note>
+The `js` variant is minimal because Node.js and Bun are pre-installed in the `hakim-tooling` base layer. Only the LazyVim feature and VSCode extensions are added.
+</Note>
+
+### Rust variant with custom profile
+
+The `rust` variant demonstrates passing options to features:
+
+```json devcontainers/.devcontainer/images/rust/.devcontainer/devcontainer.json
+{
+  "name": "Hakim Rust",
+  "image": "ghcr.io/shekohex/hakim-tooling:latest",
+  "build": {
+    "args": {
+      "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+    }
+  },
+  "features": {
+    "../../../features/src/rust": {
+      "version": "1.93.0",
+      "profile": "minimal"
+    },
+    "../../../features/src/lazyvim": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "vadimcn.vscode-lldb"
+      ]
+    }
+  },
+  "remoteUser": "coder"
+}
+```
+
+The `profile: "minimal"` option is passed to the Rust feature's install script, which configures rustup accordingly.
+
+### .NET variant with multiple SDKs
+
+The `dotnet` variant shows installing multiple .NET versions:
+
+```json devcontainers/.devcontainer/images/dotnet/.devcontainer/devcontainer.json
+{
+  "name": "Hakim Dotnet",
+  "image": "ghcr.io/shekohex/hakim-tooling:latest",
+  "build": {
+    "args": {
+      "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+    }
+  },
+  "features": {
+    "../../../features/src/dotnet": {
+      "version": "9.0",
+      "additionalVersions": "10.0-preview"
+    },
+    "../../../features/src/lazyvim": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.csdevkit"
+      ]
+    }
+  },
+  "remoteUser": "coder"
+}
+```
+
+### Complex Elixir + Phoenix variant
+
+The `elixir` variant combines multiple features with configuration:
+
+```json devcontainers/.devcontainer/images/elixir/.devcontainer/devcontainer.json
+{
+  "name": "Hakim Elixir + Phoenix",
+  "image": "ghcr.io/shekohex/hakim-tooling:latest",
+  "build": {
+    "args": {
+      "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+    }
+  },
+  "features": {
+    "../../../features/src/elixir": {
+      "erlangVersion": "28.3.1",
+      "elixirVersion": "1.19.5",
+      "seedUserHome": true
+    },
+    "../../../features/src/phoenix": {
+      "version": "1.8.3",
+      "seedUserHome": true
+    },
+    "../../../features/src/postgresql-tools": {
+      "version": "17"
+    },
+    "../../../features/src/lazyvim": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "JakeBecker.elixir-ls",
+        "phoenixframework.phoenix",
+        "bradlc.vscode-tailwindcss",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "[elixir]": {
+          "editor.formatOnSave": true,
+          "editor.insertSpaces": true,
+          "editor.tabSize": 2,
+          "editor.formatOnType": true
+        },
+        "[phoenix-heex]": {
+          "editor.formatOnSave": true,
+          "editor.defaultFormatter": "JakeBecker.elixir-ls"
+        },
+        "emmet.includeLanguages": {
+          "phoenix-heex": "html",
+          "elixir": "html"
+        }
+      }
+    }
+  },
+  "remoteUser": "coder"
+}
+```
+
+This variant:
+- Installs Erlang 28.3.1 and Elixir 1.19.5
+- Seeds Hex and Rebar in the user home
+- Installs Phoenix 1.8.3
+- Adds PostgreSQL client tools
+- Configures VSCode with Elixir-specific formatting rules
+
+### PHP variant with extensive extensions
+
+The `php` variant shows using upstream features alongside local ones:
+
+```json devcontainers/.devcontainer/images/php/.devcontainer/devcontainer.json
+{
+  "name": "Hakim PHP",
+  "image": "ghcr.io/shekohex/hakim-tooling:latest",
+  "build": {
+    "args": {
+      "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/php:1": {
+      "version": "8.4",
+      "installComposer": true
+    },
+    "../../../features/src/pie": {
+      "version": "latest",
+      "extensions": [
+        "phpredis/phpredis",
+        "apcu/apcu",
+        "imagick/imagick",
+        "swoole/swoole",
+        "php-memcached/php-memcached",
+        "igbinary/igbinary:3.2.17RC1",
+        "pecl/yaml",
+        "pecl/pcov",
+        "mongodb/mongodb-extension",
+        "xdebug/xdebug",
+        "pcntl",
+        "sockets"
+      ]
+    },
+    "./../../../features/laravel": {
+      "version": "5.24.3"
+    },
+    "../../../features/src/lazyvim": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "DEVSENSE.composer-php-vscode",
+        "phpactor.vscode-phpactor",
+        "laravel.vscode-laravel",
+        "shufo.vscode-blade-formatter"
+      ]
+    }
+  },
+  "remoteUser": "coder"
+}
+```
+
+Key points:
+- Uses the official `php` feature from DevContainers
+- Installs 12 PHP extensions via the local `pie` feature
+- Adds Laravel tooling
+- Includes PHP-specific VSCode extensions
+
+## Feature composition patterns
+
+### Upstream + local features
+
+```json
+{
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.13"
+    },
+    "../../../features/src/uv": {
+      "version": "latest"
+    }
+  }
+}
+```
+
+Reference upstream features by their full OCI path, local features by relative path.
+
+### Chained feature dependencies
+
+```json
+{
+  "features": {
+    "../../../features/src/elixir": {},
+    "../../../features/src/phoenix": {}
+  }
+}
+```
+
+The Phoenix feature declares `installsAfter: ["../../../features/src/elixir"]`, ensuring proper install order.
+
+### Feature options
+
+Pass configuration to features as JSON objects:
+
+```json
+{
+  "features": {
+    "../../../features/src/rust": {
+      "version": "1.93.0",
+      "profile": "minimal"
+    }
+  }
+}
+```
+
+Options become environment variables in the feature's `install.sh` (e.g., `VERSION=1.93.0`, `PROFILE=minimal`).
+
+## Build system integration
+
+The `scripts/build.sh` script automatically:
+
+1. Discovers all variants in `devcontainers/.devcontainer/images/*/`
+2. Replaces the base image reference with the local build tag
+3. Builds each variant with `devcontainer build`
+4. Tags images as `$REGISTRY/hakim-<variant>:latest` and `$REGISTRY/hakim-<variant>:$RUN_REF`
+
+From `scripts/build.sh:493-521`:
+
+```bash
+for variant in devcontainers/.devcontainer/images/*; do
+  variant_name=$(basename "$variant")
+  info "Building Variant: $variant_name..."
+
+  # Create temporary config with local base image
+  tmp_config=$(mktemp "${variant}/.devcontainer/.tmp-devcontainer.${variant_name}.XXXXXX.json")
+  jq --arg image "$TOOLING_IMAGE_REF" '.image = $image' \
+     "$variant/.devcontainer/devcontainer.json" > "$tmp_config"
+
+  # Build with devcontainer CLI
+  devcontainer build \
+    --workspace-folder devcontainers \
+    --config "$tmp_config" \
+    --image-name "$REGISTRY/hakim-$variant_name:latest" \
+    --image-name "$REGISTRY/hakim-$variant_name:$RUN_REF" .
+
+  rm -f "$tmp_config"
+done
+```
+
+## Best practices
+
+<CardGroup cols={2}>
+  <Card title="Inherit from tooling" icon="layer-group">
+    Always use `"image": "ghcr.io/shekohex/hakim-tooling:latest"` to get Node.js, Bun, and common tooling.
+  </Card>
+  
+  <Card title="Use relative paths" icon="link">
+    Reference local features with `../../../features/src/<name>` for portability.
+  </Card>
+  
+  <Card title="Include LazyVim" icon="keyboard">
+    Add the `lazyvim` feature to provide a consistent editor experience across variants.
+  </Card>
+  
+  <Card title="Set remoteUser" icon="user">
+    Always use `"remoteUser": "coder"` for consistency with the Coder template.
+  </Card>
+</CardGroup>
+
+## Exposing your variant in Coder
+
+After creating a variant, add it to the Coder template to make it selectable. See the [Customizing templates](/guides/customizing-templates) guide for details.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Adding features" href="/guides/adding-features" icon="plus">
+    Create custom features to use in your variants
+  </Card>
+  
+  <Card title="Customizing templates" href="/guides/customizing-templates" icon="code">
+    Expose your variant in the Coder workspace template
+  </Card>
+</CardGroup>

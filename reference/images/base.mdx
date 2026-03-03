@@ -1,0 +1,117 @@
+---
+title: Base image
+description: Minimal Debian Trixie image with Docker client and core tooling
+---
+
+The `hakim-base` image provides a minimal foundation for all Hakim variants. It's built on Debian Trixie and includes the Coder agent, Docker client, and essential development tools.
+
+## Base system
+
+<ParamField path="Operating System" type="string">
+  Debian Trixie (slim)
+</ParamField>
+
+<ParamField path="Snapshot" type="string">
+  20260201T000000Z
+</ParamField>
+
+<ParamField path="Locale" type="string">
+  en_US.UTF-8
+</ParamField>
+
+## Core tools
+
+The base image includes essential development utilities:
+
+- `curl`, `wget`, `jq`, `unzip`
+- `git`, `lsof`, `htop`
+- `sudo`, `bash`, `bash-completion`
+- `ca-certificates`, `gnupg`, `openssh-client`
+- `build-essential`, `gawk`, `procps`
+
+## Docker tooling
+
+<ParamField path="Docker CLI" type="string">
+  28.3.3
+</ParamField>
+
+<ParamField path="Docker Compose" type="string">
+  2.29.7
+</ParamField>
+
+<ParamField path="Docker Buildx" type="string">
+  0.29.1
+</ParamField>
+
+## Coder integration
+
+<ParamField path="Coder CLI" type="string">
+  2.29.7
+</ParamField>
+
+<ParamField path="code-server" type="string">
+  4.109.2
+</ParamField>
+
+<ParamField path="Eternal Terminal (ET)" type="string">
+  Latest from debian-et repository
+</ParamField>
+
+The image can run `coder agent` directly through `CODER_AGENT_URL` and `CODER_AGENT_TOKEN` environment variables.
+
+## Browser automation
+
+<ParamField path="Chrome for Testing" type="string">
+  146.0.7680.31
+</ParamField>
+
+<ParamField path="ChromeDriver" type="string">
+  146.0.7680.31
+</ParamField>
+
+Chrome is available via `/usr/bin/google-chrome-stable` and ChromeDriver via `/usr/local/bin/chromedriver`.
+
+## Tool version management
+
+<ParamField path="Mise" type="string">
+  2026.2.1
+</ParamField>
+
+Mise is configured globally at `/etc/mise` with the following tools:
+
+| Tool | Version |
+| :--- | :--- |
+| Starship | 1.24.2 |
+| Zoxide | 0.9.8 |
+| fd | 10.3.0 |
+| GitHub CLI | 2.86.0 |
+| ripgrep | 15.1.0 |
+| ast-grep | 0.40.5 |
+| Yazi | 26.1.4 |
+| btop | 1.4.6 |
+| direnv | 2.37.1 |
+| Neovim | 0.11.5 |
+| tmux | 3.6a |
+| fzf | 0.67.0 |
+| bat | 0.26.1 |
+| eza | 0.23.4 |
+| atuin | 18.11.0 |
+| Python | 3.12.12 |
+
+## Git credential helper
+
+Includes `git-credential-libsecret` built from Git source v2.52.0 for secure credential storage.
+
+## SSH configuration
+
+OpenSSH server is included with ET-based resilient SSH transport support. When enabled, services run on loopback:
+
+- `etserver` on `127.0.0.1:2022`
+- `sshd` on `127.0.0.1:2244`
+
+## User setup
+
+Default user is `coder` (UID 1000) with:
+- Passwordless sudo access
+- Docker group membership
+- Bash shell with completion

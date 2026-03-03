@@ -1,0 +1,545 @@
+---
+title: Customizing templates
+description: Modify Coder templates to expose custom variants and features
+---
+
+Hakim's Coder templates are written in Terraform and define the workspace infrastructure. This guide shows you how to customize the templates to add new variants, parameters, and integrations.
+
+## Template structure
+
+The main template lives at `coder/templates/hakim/main.tf`. It defines:
+
+- **Parameters** - User inputs for workspace configuration
+- **Resources** - Docker containers, volumes, networks
+- **Modules** - Reusable components (OpenCode, tmux, git setup)
+- **Apps** - Web UIs exposed in the workspace
+- **Presets** - Quick-start configurations
+
+<Tip>
+Run `terraform fmt -recursive && terraform validate` after making changes to ensure your Terraform is valid.
+</Tip>
+
+## Adding a new variant
+
+After creating a new image variant, expose it in the template so users can select it.
+
+<Steps>
+  <Step title="Add the variant option">
+    Add a new option block to the `image_variant` parameter in `coder/templates/hakim/main.tf:23-79`:
+
+    ```hcl coder/templates/hakim/main.tf
+    data "coder_parameter" "image_variant" {
+      name         = "image_variant"
+      display_name = "Environment"
+      description  = "Select the programming language environment."
+      default      = "base"
+      type         = "string"
+      icon         = "/icon/docker.svg"
+      
+      # ... existing options ...
+      
+      option {
+        name        = "Python 3.13"
+        description = "Python with uv, ruff, and modern tooling."
+        value       = "python"
+        icon        = "/icon/python.svg"
+      }
+      
+      order = 1
+    }
+    ```
+
+    The `value` must match your variant directory name (e.g., `python` for `devcontainers/.devcontainer/images/python/`).
+  </Step>
+
+  <Step title="Update the Docker resource">
+    The template already maps `image_variant` to the container image at line 988:
+
+    ```hcl coder/templates/hakim/main.tf
+    resource "docker_container" "workspace" {
+      count = data.coder_workspace.me.start_count
+      image = data.coder_parameter.image_variant.value == "custom" 
+        ? data.coder_parameter.image_url[count.index].value 
+        : "ghcr.io/shekohex/hakim-${data.coder_parameter.image_variant.value}:latest"
+      # ...
+    }
+    ```
+
+    This automatically uses `ghcr.io/shekohex/hakim-python:latest` when the user selects your variant.
+  </Step>
+
+  <Step title="Add a workspace preset">
+    Create a quick-start preset for your variant:
+
+    ```hcl coder/templates/hakim/main.tf
+    data "coder_workspace_preset" "python_quick" {
+      name        = "Python Quick Start"
+      description = "Python 3.13 environment"
+      icon        = "/icon/python.svg"
+      parameters = {
+        "image_variant" = "python"
+        "git_url"       = ""
+        "system_prompt" = "You are working on a Python project. Use uv for dependency management and ruff for linting."
+      }
+    }
+    ```
+
+    Users can now select "Python Quick Start" when creating a workspace.
+  </Step>
+
+  <Step title="Test the template">
+    Validate and format the template:
+
+    ```bash
+    cd coder/templates/hakim
+    terraform fmt -recursive
+    terraform validate
+    ```
+
+    Then push to Coder to test:
+
+    ```bash
+    coder templates push hakim
+    ```
+  </Step>
+</Steps>
+
+## Existing variants and presets
+
+Hakim includes these preset configurations:
+
+### Laravel Quick Start
+
+```hcl coder/templates/hakim/main.tf:857-867
+data "coder_workspace_preset" "laravel_quick" {
+  name        = "Laravel Quick Start"
+  description = "PHP 8.4 + Laravel for one-off tasks"
+  icon        = "/icon/php.svg"
+  default     = true
+  parameters = {
+    "image_variant" = "php"
+    "git_url"       = ""
+    "system_prompt" = "You are working on a Laravel API project. Use artisan commands."
+  }
+}
+```
+
+### Phoenix Quick Start
+
+```hcl coder/templates/hakim/main.tf:913-923
+data "coder_workspace_preset" "phoenix_quick" {
+  name        = "Phoenix Quick Start"
+  description = "Elixir + Phoenix environment"
+  icon        = "/icon/docker.svg"
+  parameters = {
+    "image_variant" = "elixir"
+    "git_url"       = ""
+    "system_prompt" = "You are working on a Phoenix project. Use mix, phx, and Ecto commands. Prefer mix format and ElixirLS."
+    "preview_port"  = "4000"
+  }
+}
+```
+
+Note how the Phoenix preset customizes the `preview_port` to match Phoenix's default port.
+
+## Adding custom parameters
+
+You can add new parameters to customize workspace behavior.
+
+### Simple string parameter
+
+```hcl
+data "coder_parameter" "api_key" {
+  name         = "api_key"
+  display_name = "External API Key"
+  description  = "API key for external service integration."
+  type         = "string"
+  default      = ""
+  mutable      = true
+  styling      = jsonencode({ mask_input = true })
+  icon         = "/icon/lock.svg"
+  order        = 50
+}
+```
+
+### Boolean parameter with conditional resources
+
+```hcl
+data "coder_parameter" "enable_redis" {
+  name         = "enable_redis"
+  display_name = "Enable Redis"
+  description  = "Start a Redis container alongside the workspace."
+  type         = "bool"
+  default      = false
+  icon         = "/icon/redis.svg"
+  order        = 51
+}
+
+resource "docker_container" "redis" {
+  count = data.coder_parameter.enable_redis.value ? 1 : 0
+  image = "redis:7-alpine"
+  name  = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}-redis"
+  
+  networks_advanced {
+    name = docker_network.private_network.name
+  }
+}
+```
+
+### Textarea parameter for scripts
+
+The template uses `form_type = "textarea"` for multi-line inputs:
+
+```hcl coder/templates/hakim/main.tf:524-534
+data "coder_parameter" "setup_script" {
+  name         = "setup_script"
+  display_name = "Setup Script"
+  description  = "Script to run before running the agent (clone repos, start dev servers, etc)."
+  type         = "string"
+  form_type    = "textarea"
+  default      = ""
+  mutable      = false
+  icon         = "/icon/terminal.svg"
+  order        = 13
+}
+```
+
+## Using parameters in resources
+
+### Environment variables
+
+Inject parameter values as environment variables in the container:
+
+```hcl coder/templates/hakim/main.tf:1006-1011
+resource "docker_container" "workspace" {
+  # ...
+  env = concat(
+    ["CODER_AGENT_TOKEN=${coder_agent.main.token}"],
+    ["CODER_AGENT_URL=${replace(data.coder_workspace.me.access_url, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}"],
+    [for k, v in local.combined_env : "${k}=${v}"]
+  )
+}
+```
+
+The `local.combined_env` merges default, user, and secret environment variables:
+
+```hcl coder/templates/hakim/main.tf:536-544
+locals {
+  user_env   = try(jsondecode(trimspace(data.coder_parameter.user_env.value)), {})
+  secret_env = try(jsondecode(trimspace(data.coder_parameter.secret_env.value)), {})
+  default_env = {
+    MIX_HOME     = "/home/coder/.mix"
+    HEX_HOME     = "/home/coder/.hex"
+    MIX_ARCHIVES = "/home/coder/.mix/archives"
+  }
+  combined_env = merge(local.default_env, local.user_env, local.secret_env)
+}
+```
+
+### Startup scripts
+
+The agent's `startup_script` runs when the workspace starts:
+
+```hcl coder/templates/hakim/main.tf:558-628
+resource "coder_agent" "main" {
+  arch           = data.coder_provisioner.me.arch
+  os             = "linux"
+  env            = local.combined_env
+  startup_script = <<-EOT
+    #!/bin/bash
+    set -e
+    
+    mkdir -p ~/.config/mise ~/.local/bin ~/project
+    touch ~/.config/mise/config.toml
+
+    if [ ! -f ~/.init_done ]; then
+      cp -rT /etc/skel ~ || true
+      touch ~/.init_done
+    fi
+
+    # Add ~/.local/bin to PATH
+    if ! grep -Fq 'if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then' ~/.bashrc; then
+      cat >> ~/.bashrc <<'EOF'
+if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+EOF
+    fi
+
+    # Create oca helper script
+    cat > ~/.local/bin/oca <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exec opencode attach http://localhost:4096 --dir . "$@"
+EOF
+    chmod +x ~/.local/bin/oca
+
+    # Grant Docker socket access
+    if [ -e /var/run/docker.sock ]; then
+      sudo chmod 666 /var/run/docker.sock
+    fi
+  EOT
+}
+```
+
+## Integrating modules
+
+Hakim uses Terraform modules for common integrations. These live in `coder/modules/`.
+
+### OpenCode module
+
+```hcl coder/templates/hakim/main.tf:685-699
+module "opencode" {
+  count               = data.coder_workspace.me.start_count
+  source              = "github.com/shekohex/hakim//coder/modules/opencode?ref=main"
+  agent_id            = coder_agent.main.id
+  workdir             = local.project_dir
+  auth_json           = data.coder_parameter.opencode_auth.value
+  config_json         = data.coder_parameter.opencode_config.value
+  install_opencode    = true
+  order               = 999
+  cli_app             = true
+  report_tasks        = true
+  subdomain           = true
+  ai_prompt           = trimspace(data.coder_task.me.prompt) != "" ? trimspace("${data.coder_parameter.system_prompt.value}\n${data.coder_task.me.prompt}") : ""
+  post_install_script = data.coder_parameter.setup_script.value
+}
+```
+
+The OpenCode module:
+- Installs the OpenCode CLI
+- Configures authentication and settings
+- Exposes a web UI via `subdomain = true`
+- Integrates with Coder's AI Task system
+
+### Conditional modules
+
+Some modules only load for specific variants:
+
+```hcl coder/templates/hakim/main.tf:701-720
+module "openchamber" {
+  count = data.coder_workspace.me.start_count > 0 && contains([
+    "php",
+    "dotnet",
+    "js",
+    "rust",
+    "android",
+    "elixir"
+  ], data.coder_parameter.image_variant.value) ? 1 : 0
+  
+  source                = "github.com/shekohex/hakim//coder/modules/openchamber?ref=main"
+  agent_id              = coder_agent.main.id
+  workdir               = local.project_dir
+  ui_password           = data.coder_parameter.openchamber_ui_password.value
+  reuse_opencode_server = data.coder_parameter.openchamber_reuse_opencode.value
+  opencode_port         = data.coder_parameter.openchamber_opencode_port.value
+  install_openchamber   = true
+  order                 = 998
+  subdomain             = true
+  depends_on            = [module.opencode]
+}
+```
+
+OpenChamber only loads for development-focused variants, not the minimal `base` variant.
+
+## Adding workspace apps
+
+Expose web services as clickable apps in the Coder dashboard.
+
+### Preview app
+
+The template includes a preview app for development servers:
+
+```hcl coder/templates/hakim/main.tf:936-951
+resource "coder_app" "preview" {
+  agent_id     = coder_agent.main.id
+  slug         = "preview"
+  display_name = "Preview"
+  icon         = "/emojis/1f50e.png"
+  url          = "http://localhost:${data.coder_parameter.preview_port.value}"
+  share        = "authenticated"
+  subdomain    = true
+  open_in      = "tab"
+  order        = 0
+  healthcheck {
+    url       = "http://localhost:${data.coder_parameter.preview_port.value}/"
+    interval  = 5
+    threshold = 15
+  }
+}
+```
+
+### Custom app example
+
+```hcl
+resource "coder_app" "docs" {
+  agent_id     = coder_agent.main.id
+  slug         = "docs"
+  display_name = "Documentation"
+  icon         = "/icon/book.svg"
+  url          = "http://localhost:8000"
+  subdomain    = true
+  open_in      = "tab"
+  order        = 1
+}
+```
+
+## Resource limits
+
+The template supports optional CPU and memory limits:
+
+```hcl coder/templates/hakim/main.tf:993-1003
+resource "docker_container" "workspace" {
+  # ...
+  memory = (
+    data.coder_parameter.enable_resource_limits.value &&
+    length(data.coder_parameter.container_memory) > 0 &&
+    data.coder_parameter.container_memory[0].value > 0
+  ) ? data.coder_parameter.container_memory[0].value : null
+
+  cpus = (
+    data.coder_parameter.enable_resource_limits.value &&
+    length(data.coder_parameter.container_cpus) > 0 &&
+    tonumber(data.coder_parameter.container_cpus[0].value) > 0
+  ) ? data.coder_parameter.container_cpus[0].value : null
+}
+```
+
+This only applies limits when `enable_resource_limits` is true and values are non-zero.
+
+## Common customizations
+
+### Add a database container
+
+```hcl
+resource "docker_container" "postgres" {
+  count = data.coder_parameter.enable_postgres.value ? 1 : 0
+  image = "postgres:17-alpine"
+  name  = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}-postgres"
+  
+  env = [
+    "POSTGRES_PASSWORD=postgres",
+    "POSTGRES_USER=postgres",
+    "POSTGRES_DB=app"
+  ]
+  
+  networks_advanced {
+    name = docker_network.private_network.name
+  }
+  
+  volumes {
+    container_path = "/var/lib/postgresql/data"
+    volume_name    = docker_volume.postgres_data[count.index].name
+  }
+}
+
+resource "docker_volume" "postgres_data" {
+  count = data.coder_parameter.enable_postgres.value ? 1 : 0
+  name  = "coder-${data.coder_workspace.me.id}-postgres"
+}
+```
+
+### Modify the network configuration
+
+The template creates a private network for each workspace:
+
+```hcl coder/templates/hakim/main.tf:957-959
+resource "docker_network" "private_network" {
+  name = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}"
+}
+```
+
+Containers join this network:
+
+```hcl coder/templates/hakim/main.tf:1018-1020
+resource "docker_container" "workspace" {
+  # ...
+  networks_advanced {
+    name = docker_network.private_network.name
+  }
+}
+```
+
+### Add persistent volumes
+
+The home directory is already persisted:
+
+```hcl coder/templates/hakim/main.tf:1022-1026
+volumes {
+  container_path = "/home/coder"
+  volume_name    = docker_volume.home_volume.name
+  read_only      = false
+}
+```
+
+Add additional volumes as needed:
+
+```hcl
+volumes {
+  container_path = "/data"
+  volume_name    = docker_volume.data_volume.name
+  read_only      = false
+}
+```
+
+## Best practices
+
+<CardGroup cols={2}>
+  <Card title="Use terraform fmt" icon="code">
+    Run `terraform fmt -recursive` before committing to maintain consistent formatting.
+  </Card>
+  
+  <Card title="Validate templates" icon="check">
+    Always run `terraform validate` to catch syntax errors before pushing.
+  </Card>
+  
+  <Card title="Use snake_case" icon="snake">
+    Follow Terraform conventions by using snake_case for all resource and variable names.
+  </Card>
+  
+  <Card title="Add presets" icon="bolt">
+    Create workspace presets for common configurations to improve user experience.
+  </Card>
+</CardGroup>
+
+## Testing template changes
+
+<Steps>
+  <Step title="Validate locally">
+    ```bash
+    cd coder/templates/hakim
+    terraform fmt -recursive
+    terraform validate
+    ```
+  </Step>
+
+  <Step title="Push to Coder">
+    ```bash
+    coder templates push hakim
+    ```
+  </Step>
+
+  <Step title="Create a test workspace">
+    Create a workspace from the updated template to verify your changes work as expected.
+  </Step>
+
+  <Step title="Check logs">
+    Monitor the workspace startup logs for any errors:
+
+    ```bash
+    coder logs <workspace-name>
+    ```
+  </Step>
+</Steps>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Adding features" href="/guides/adding-features" icon="plus">
+    Create custom DevContainer features for your variants
+  </Card>
+  
+  <Card title="Creating variants" href="/guides/creating-variants" icon="layer-group">
+    Build new image variants with custom tooling
+  </Card>
+</CardGroup>

@@ -1,0 +1,71 @@
+---
+title: Rust image
+description: Rust toolchain with JavaScript runtimes
+---
+
+The `hakim-rust` image provides the Rust toolchain with a minimal profile alongside Node.js and Bun for systems programming and full-stack development.
+
+## Included runtimes
+
+This image inherits from `hakim-tooling`, which includes:
+
+<ParamField path="Node.js" type="string">
+  24.12.0 (LTS)
+</ParamField>
+
+<ParamField path="Bun" type="string">
+  1.3.9
+</ParamField>
+
+<ParamField path="node-gyp" type="string">
+  12.2.0
+</ParamField>
+
+<ParamField path="uv (Python package manager)" type="string">
+  0.9.24
+</ParamField>
+
+<ParamField path="Python" type="string">
+  3.12.12
+</ParamField>
+
+<ParamField path="OpenCode" type="string">
+  1.2.15
+</ParamField>
+
+## Rust toolchain
+
+<ParamField path="Rust" type="string">
+  1.93.0
+</ParamField>
+
+<ParamField path="Profile" type="string">
+  minimal
+</ParamField>
+
+The minimal profile includes `rustc`, `cargo`, and `rustfmt`, but excludes documentation and other optional components to reduce image size. You can add additional components using `rustup component add` as needed.
+
+## Editor tooling
+
+<ParamField path="LazyVim" type="string">
+  Configured
+</ParamField>
+
+Pre-configured Neovim distribution with IDE-like features.
+
+## VS Code extensions
+
+The following extensions are pre-configured:
+
+- `rust-lang.rust-analyzer` - Rust language server
+- `tamasfe.even-better-toml` - TOML language support
+- `vadimcn.vscode-lldb` - Native debugger for Rust
+
+## Base tooling
+
+Inherits all tools from the [base image](/reference/images/base), including:
+
+- Docker CLI, Compose, and Buildx
+- Coder agent and code-server
+- Chrome for Testing and ChromeDriver
+- Mise with common CLI tools (ripgrep, fd, fzf, etc.)

@@ -1,80 +1,301 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get a Hakim workspace running in minutes
 ---
 
-## Get started in three steps
-
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This guide gets you from zero to a running workspace in under 5 minutes using the Docker template.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Already have Coder running? Jump to [step 3](#step-3-create-template).
+</Note>
+
+## Prerequisites
+
+Before starting, ensure you have:
+
+- Docker installed and running
+- `coder` CLI installed ([installation guide](https://coder.com/docs/install))
+- OpenCode authentication credentials (run `opencode login` locally)
+
+## Step 1: Start Coder server
+
+If you don't have a Coder server running, start one locally:
+
+```bash
+# Start Coder in development mode
+coder server --tunnel
+```
+
+The `--tunnel` flag creates a public URL for accessing your Coder deployment. Follow the prompts to create your first admin user.
+
+<Tip>
+  Save the access URL and credentials shown in the terminal - you'll need them to access the Coder web UI.
+</Tip>
+
+## Step 2: Clone Hakim repository
+
+Clone the Hakim repository to access the templates:
+
+```bash
+git clone https://github.com/shekohex/hakim.git
+cd hakim
+```
+
+## Step 3: Create template
+
+Push the Hakim Docker template to your Coder deployment:
+
+```bash
+cd coder/templates/hakim
+coder templates push hakim
+```
+
+You should see output confirming the template was created:
+
+```
+Uploading "hakim"...
+Uploaded 156 KB in 0.2s
+Template created successfully!
+View it online: https://your-coder-url.com/templates/hakim
+```
+
+## Step 4: Get OpenCode credentials
+
+You need your OpenCode auth.json to enable the AI agent. If you haven't already:
+
+<Steps>
+  <Step title="Login to OpenCode">
+    Run `opencode login` on your local machine and follow the prompts to authenticate.
+  </Step>
+  
+  <Step title="Copy auth credentials">
+    Copy the contents of `~/.local/share/opencode/auth.json`:
+    
+    ```bash
+    cat ~/.local/share/opencode/auth.json
+    ```
+  </Step>
+  
+  <Step title="Save for next step">
+    Keep this JSON handy - you'll paste it into the workspace creation form.
+  </Step>
+</Steps>
+
+## Step 5: Create workspace
+
+Now create your first workspace using the template:
+
+<Steps>
+  <Step title="Open Coder web UI">
+    Navigate to your Coder deployment URL in a browser and log in.
+  </Step>
+  
+  <Step title="Create workspace">
+    Click **Create Workspace** and select the **hakim** template.
+  </Step>
+  
+  <Step title="Choose environment">
+    Select your desired environment from the **Environment** dropdown:
+    
+    - **Base (Minimal)**: Core tools only
+    - **Laravel with PHP 8.4**: PHP development with Laravel
+    - **.NET 10.0**: .NET development
+    - **Node.js & Bun**: JavaScript/TypeScript development
+    - **Rust**: Rust development
+    - **Elixir + Phoenix**: Elixir/Phoenix development
+    - **Android**: Android app development
+  </Step>
+  
+  <Step title="Configure OpenCode">
+    Paste your OpenCode auth.json from step 4 into the **OpenCode Auth JSON** field.
+    
+    <Warning>
+      Without valid OpenCode credentials, the AI agent features won't work. The workspace will still function for manual development.
+    </Warning>
+  </Step>
+  
+  <Step title="Optional: Clone repository">
+    If you want to start with an existing project, paste the Git repository URL into the **Git Repository URL** field.
+  </Step>
+  
+  <Step title="Create">
+    Click **Create Workspace**. Coder will provision your environment.
+  </Step>
+</Steps>
+
+Workspace creation typically takes 30-60 seconds on first run (image pull time).
+
+## Step 6: Access your workspace
+
+Once the workspace is running, you have several access options:
+
+<Tabs>
+  <Tab title="Web IDE">
+    Click the **code-server** app in the Coder dashboard to open VS Code in your browser.
+    
+    The workspace opens with your project directory and all tools pre-installed.
+  </Tab>
+  
+  <Tab title="OpenCode UI">
+    Click the **OpenCode** app to open the AI agent web interface.
+    
+    From here you can:
+    - Chat with the AI agent
+    - View task execution in real-time
+    - Browse workspace files
+    - Monitor agent activities
+  </Tab>
+  
+  <Tab title="Terminal (SSH)">
+    Connect via SSH using the Coder CLI:
+    
+    ```bash
+    coder ssh your-workspace-name
+    ```
+    
+    Or use the `oca` command from inside the workspace terminal:
+    
+    ```bash
+    # Attach OpenCode CLI
+    oca
+    ```
+  </Tab>
+  
+  <Tab title="Zed Editor">
+    If you have Zed installed locally, click the **Zed** app to open the workspace in Zed.
+    
+    Zed connects via SSH and provides native editor performance with remote workspace access.
+  </Tab>
+</Tabs>
+
+## Step 7: Try a task
+
+Test the OpenCode integration by creating a task:
+
+<Steps>
+  <Step title="Open Tasks UI">
+    In the Coder dashboard, navigate to your workspace and click the **Tasks** tab.
+  </Step>
+  
+  <Step title="Create a task">
+    Click **New Task** and enter a prompt like:
+    
+    ```
+    Create a simple hello world HTTP server on port 3000
+    ```
+  </Step>
+  
+  <Step title="Watch execution">
+    OpenCode will autonomously:
+    1. Analyze the task
+    2. Write the necessary code
+    3. Run the server
+    4. Report completion
+  </Step>
+  
+  <Step title="View result">
+    Once complete, click the **Preview** app in your workspace to see the running server.
+  </Step>
+</Steps>
+
+## What's next?
+
+<CardGroup cols={2}>
+  <Card
+    title="Installation guide"
+    icon="download"
+    href="/installation"
+  >
+    Complete setup with resilient SSH, custom features, and production deployment
+  </Card>
+  
+  <Card
+    title="Template parameters"
+    icon="sliders"
+    href="/introduction#template-parameters"
+  >
+    Explore all available template configuration options
+  </Card>
+  
+  <Card
+    title="Build custom images"
+    icon="hammer"
+    href="/installation#building-images"
+  >
+    Create your own DevContainer variants with custom tooling
+  </Card>
+  
+  <Card
+    title="Resilient SSH"
+    icon="terminal"
+    href="/introduction#resilient-ssh"
+  >
+    Set up EternalTerminal for network-resilient SSH sessions
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Workspace fails to start">
+    **Check Docker daemon**: Ensure Docker is running on the host machine:
+    
+    ```bash
+    docker ps
+    ```
+    
+    **Check image availability**: Verify the DevContainer image exists:
+    
+    ```bash
+    docker images | grep hakim
+    ```
+    
+    **Pull image manually**: If the image is missing:
+    
+    ```bash
+    docker pull ghcr.io/shekohex/hakim-base:latest
+    ```
+  </Accordion>
+  
+  <Accordion title="OpenCode not working">
+    **Verify credentials**: Check that you pasted valid auth.json in the workspace parameters.
+    
+    **Check logs**: SSH into the workspace and check OpenCode logs:
+    
+    ```bash
+    coder ssh your-workspace
+    tail -f /tmp/opencode-serve.log
+    ```
+    
+    **Restart OpenCode**: From the Coder dashboard, restart the workspace to reload OpenCode configuration.
+  </Accordion>
+  
+  <Accordion title="Git clone fails on startup">
+    **Check repository access**: Ensure the Git repository URL is accessible and you have proper credentials.
+    
+    **Check dotfiles**: If using Coder dotfiles, verify they don't conflict with git configuration.
+    
+    **Manual clone**: SSH into the workspace and clone manually:
+    
+    ```bash
+    cd ~/project
+    git clone https://github.com/username/repo.git .
+    ```
+  </Accordion>
+  
+  <Accordion title="Preview port not accessible">
+    **Check port**: Verify your application is running on the configured preview port (default 3000):
+    
+    ```bash
+    lsof -i :3000
+    ```
+    
+    **Update parameter**: If using a different port, update the **Preview Port** workspace parameter.
+    
+    **Check firewall**: Ensure Coder can forward the port (should work by default in Docker mode).
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+  For additional help, check the [Coder documentation](https://coder.com/docs) or [OpenCode documentation](https://opencode.ai/docs).
 </Note>

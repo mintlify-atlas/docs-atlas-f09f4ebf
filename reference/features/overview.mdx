@@ -1,0 +1,56 @@
+---
+title: DevContainer features
+description: Composable DevContainer features for installing development tools
+---
+
+Hakim provides a collection of composable DevContainer features that use [Mise](https://mise.jdx.dev/) to manage tool installations. These features are designed to work seamlessly with the base image and can be combined to create custom development environments.
+
+## Available features
+
+The following features are available for installing development tools:
+
+- [Node.js](/reference/features/nodejs) - JavaScript runtime via Mise
+- [Bun](/reference/features/bun) - Fast JavaScript runtime and toolkit via Mise
+- [Rust](/reference/features/rust) - Rust toolchain via Mise
+- [.NET](/reference/features/dotnet) - .NET SDK versions via Mise
+- [Elixir](/reference/features/elixir) - Erlang/OTP and Elixir via Mise
+
+## How features work
+
+Each feature is a self-contained DevContainer feature that:
+
+1. Installs the specified tool using Mise as the version manager
+2. Configures the tool for system-wide use
+3. Sets up necessary environment variables
+4. Verifies the installation
+
+## Using features
+
+To use a feature in your DevContainer, add it to your `devcontainer.json`:
+
+```json
+{
+  "image": "ghcr.io/shekohex/hakim-base:latest",
+  "features": {
+    "../../../features/src/nodejs": {
+      "version": "22"
+    },
+    "../../../features/src/rust": {
+      "version": "latest",
+      "profile": "default"
+    }
+  }
+}
+```
+
+## Why Mise?
+
+[Mise](https://mise.jdx.dev/) is a polyglot version manager that supports multiple programming languages and tools. Using Mise for feature installation provides:
+
+- Consistent version management across all tools
+- Fast, parallel installation
+- Reproducible builds
+- Easy version switching
+- Minimal overhead
+
+All features depend on the base Mise installation, which is included in the Hakim base image.

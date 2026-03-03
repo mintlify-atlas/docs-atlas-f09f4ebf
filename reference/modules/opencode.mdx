@@ -1,0 +1,170 @@
+---
+title: OpenCode
+description: Run OpenCode AI coding assistant with embedded web UI
+icon: /icons/opencode.svg
+---
+
+Run [OpenCode](https://opencode.ai) AI coding assistant in your workspace. This module runs `opencode serve` directly, providing an embedded web UI on port 4096.
+
+## Usage
+
+```tf
+module "opencode" {
+  source   = "github.com/shekohex/hakim//coder/modules/opencode?ref=main"
+  agent_id = coder_agent.main.id
+  workdir  = "/home/coder/project"
+}
+```
+
+## Prerequisites
+
+- **Authentication credentials** - OpenCode auth.json file required for non-interactive authentication: `$HOME/.local/share/opencode/auth.json`
+
+## Examples
+
+### Basic usage with tasks
+
+```tf
+resource "coder_ai_task" "task" {
+  app_id = module.opencode.task_app_id
+}
+
+module "opencode" {
+  source   = "github.com/shekohex/hakim//coder/modules/opencode?ref=main"
+  agent_id = coder_agent.main.id
+  workdir  = "/home/coder/project"
+  ai_prompt = coder_ai_task.task.prompt
+
+  auth_json = <<-EOT
+{
+  "anthropic": {
+    "type": "api",
+    "key": "sk-ant-api03-xxx"
+  }
+}
+EOT
+
+  config_json = jsonencode({
+    "$schema" = "https://opencode.ai/config.json"
+    model     = "anthropic/claude-sonnet-4-20250514"
+  })
+}
+```
+
+### CLI mode
+
+```tf
+module "opencode" {
+  source       = "github.com/shekohex/hakim//coder/modules/opencode?ref=main"
+  agent_id     = coder_agent.main.id
+  workdir      = "/home/coder"
+  report_tasks = false
+  cli_app      = true
+}
+```
+
+## Variables
+
+### Required
+
+<ParamField path="agent_id" type="string" required>
+  The ID of a Coder agent.
+</ParamField>
+
+<ParamField path="workdir" type="string" required>
+  The folder to run OpenCode in.
+</ParamField>
+
+### Optional
+
+<ParamField path="order" type="number" default="null">
+  The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order).
+</ParamField>
+
+<ParamField path="group" type="string" default="null">
+  The name of a group that this app belongs to.
+</ParamField>
+
+<ParamField path="icon" type="string" default="/icon/opencode.svg">
+  The icon to use for the app.
+</ParamField>
+
+<ParamField path="report_tasks" type="bool" default="true">
+  Whether to enable task reporting to Coder UI via MCP.
+</ParamField>
+
+<ParamField path="cli_app" type="bool" default="false">
+  Whether to create a CLI app for OpenCode.
+</ParamField>
+
+<ParamField path="web_app_display_name" type="string" default="OpenCode">
+  Display name for the web app.
+</ParamField>
+
+<ParamField path="cli_app_display_name" type="string" default="OpenCode CLI">
+  Display name for the CLI app.
+</ParamField>
+
+<ParamField path="pre_install_script" type="string" default="null">
+  Custom script to run before installing OpenCode.
+</ParamField>
+
+<ParamField path="post_install_script" type="string" default="null">
+  Custom script to run after installing OpenCode.
+</ParamField>
+
+<ParamField path="ai_prompt" type="string" default="">
+  Initial task prompt for OpenCode.
+</ParamField>
+
+<ParamField path="subdomain" type="bool" default="true">
+  Whether to use a subdomain for the web app.
+</ParamField>
+
+<ParamField path="install_opencode" type="bool" default="true">
+  Whether to install OpenCode.
+</ParamField>
+
+<ParamField path="opencode_version" type="string" default="1.2.15">
+  The version of OpenCode to install.
+</ParamField>
+
+<ParamField path="continue" type="bool" default="false">
+  Continue the last session. Uses the --continue flag.
+</ParamField>
+
+<ParamField path="session_id" type="string" default="">
+  Session id to continue. Passed via --session.
+</ParamField>
+
+<ParamField path="auth_json" type="string" default="">
+  Your auth.json from $HOME/.local/share/opencode/auth.json. Required for non-interactive authentication.
+</ParamField>
+
+<ParamField path="config_json" type="string" default="">
+  OpenCode JSON config. See [OpenCode configuration](https://opencode.ai/docs/config/) for details.
+</ParamField>
+
+<ParamField path="port" type="number" default="4096">
+  The port for the OpenCode web server.
+</ParamField>
+
+<ParamField path="hostname" type="string" default="0.0.0.0">
+  The hostname for the OpenCode web server.
+</ParamField>
+
+## Outputs
+
+<ParamField path="task_app_id" type="string">
+  The ID of the OpenCode web app. Use this with `coder_ai_task` resource to enable task reporting.
+</ParamField>
+
+## Troubleshooting
+
+Check logs at `/tmp/opencode-serve.log` within your workspace.
+
+## References
+
+- [OpenCode Documentation](https://opencode.ai/docs)
+- [OpenCode JSON Config](https://opencode.ai/docs/config/)
+- [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)

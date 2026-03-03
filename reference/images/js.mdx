@@ -1,0 +1,68 @@
+---
+title: JS image
+description: JavaScript workspace with Node.js LTS and Bun
+---
+
+The `hakim-js` image provides a focused JavaScript development environment with both Node.js and Bun runtimes.
+
+## Included runtimes
+
+This image inherits from `hakim-tooling`, which includes:
+
+<ParamField path="Node.js" type="string">
+  24.12.0 (LTS)
+</ParamField>
+
+<ParamField path="Bun" type="string">
+  1.3.9
+</ParamField>
+
+<ParamField path="node-gyp" type="string">
+  12.2.0
+</ParamField>
+
+<ParamField path="uv (Python package manager)" type="string">
+  0.9.24
+</ParamField>
+
+<ParamField path="Python" type="string">
+  3.12.12
+</ParamField>
+
+<ParamField path="OpenCode" type="string">
+  1.2.15
+</ParamField>
+
+## Package managers
+
+Multiple package managers are available through Node.js:
+
+- **npm** - Default Node.js package manager
+- **pnpm** - Fast, disk space efficient package manager (via Corepack)
+- **yarn** - Classic and modern Yarn versions (via Corepack)
+- **Corepack** - Node.js package manager manager
+
+## Editor tooling
+
+<ParamField path="LazyVim" type="string">
+  Configured
+</ParamField>
+
+Pre-configured Neovim distribution with IDE-like features.
+
+## VS Code extensions
+
+The following extensions are pre-configured:
+
+- `dbaeumer.vscode-eslint` - ESLint integration
+- `esbenp.prettier-vscode` - Prettier code formatter
+- `oven.bun-vscode` - Bun runtime support
+
+## Base tooling
+
+Inherits all tools from the [base image](/reference/images/base), including:
+
+- Docker CLI, Compose, and Buildx
+- Coder agent and code-server
+- Chrome for Testing and ChromeDriver
+- Mise with common CLI tools (ripgrep, fd, fzf, etc.)

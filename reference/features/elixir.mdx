@@ -1,0 +1,141 @@
+---
+title: Elixir
+description: Install Erlang/OTP and Elixir using Mise
+---
+
+Installs Erlang/OTP and Elixir using [Mise](https://mise.jdx.dev/) with automatic version compatibility and optional user home seeding for Mix and Hex.
+
+## Feature ID
+
+```
+elixir
+```
+
+## Usage
+
+Add the feature to your `devcontainer.json`:
+
+```json
+{
+  "features": {
+    "../../../features/src/elixir": {
+      "erlangVersion": "28.3.1",
+      "elixirVersion": "1.19.5",
+      "seedUserHome": true
+    }
+  }
+}
+```
+
+## Options
+
+<ParamField path="erlangVersion" type="string" default="28.3.1">
+  Select the version of Erlang/OTP to install.
+  
+  Supported values:
+  - `28.3.1` - Erlang/OTP 28.3.1
+  - `27` - Erlang/OTP 27.x
+  - `26` - Erlang/OTP 26.x
+  - `latest` - Latest stable release
+  - Any specific version number
+</ParamField>
+
+<ParamField path="elixirVersion" type="string" default="1.19.5">
+  Select the version of Elixir to install.
+  
+  Supported values:
+  - `1.19.5` - Elixir 1.19.5
+  - `1.17` - Elixir 1.17.x
+  - `1.16` - Elixir 1.16.x
+  - `latest` - Latest stable release
+  - Any specific version number
+  
+  The feature automatically ensures Elixir version compatibility with the installed Erlang/OTP version by appending the appropriate OTP version suffix (e.g., `1.19.5-otp-28`).
+</ParamField>
+
+<ParamField path="seedUserHome" type="boolean" default="true">
+  Install Hex and Rebar into the runtime user home during image build.
+  
+  When enabled, this pre-installs:
+  - Hex - Elixir package manager
+  - Rebar - Erlang build tool
+  
+  This speeds up first-time project setup and ensures these tools are immediately available. The installation is done for the detected remote user (typically `coder` or `vscode`).
+</ParamField>
+
+## What gets installed
+
+This feature:
+
+1. Installs required dependencies (OpenSSL, libncurses, certificates)
+2. Installs Erlang/OTP via Mise at the specified version
+3. Installs Elixir via Mise with automatic OTP version compatibility
+4. Configures Mix and Hex to use user home directories
+5. Sets up environment variables for Mix, Hex, and archives
+6. Optionally seeds the user home with Hex and Rebar (if `seedUserHome` is true)
+7. Verifies both Erlang and Elixir installations
+
+## OTP version compatibility
+
+The feature automatically handles Elixir-Erlang version compatibility:
+
+- When you specify an Elixir version, it appends the installed OTP major version
+- For example, if you install Erlang 28.3.1 and Elixir 1.19.5, it installs `elixir@1.19.5-otp-28`
+- This ensures the Elixir version is compatible with your Erlang installation
+
+## Environment variables
+
+The feature sets up:
+
+**Build-time:**
+- `MISE_YES=1` - Auto-confirms Mise prompts
+- `MISE_DATA_DIR=/usr/local/share/mise` - Mise data directory
+- `MISE_CONFIG_DIR=/etc/mise` - Mise configuration directory
+- `MISE_GLOBAL_CONFIG_FILE=/etc/mise/config.toml` - Global config file
+
+**Runtime (via `/etc/profile.d/elixir-mix.sh`):**
+- `MIX_HOME=$HOME/.mix` - Mix directory in user home
+- `HEX_HOME=$HOME/.hex` - Hex directory in user home
+- `MIX_ARCHIVES=$MIX_HOME/archives` - Mix archives location
+
+## User home seeding
+
+When `seedUserHome` is enabled, the feature:
+
+1. Creates `.mix`, `.hex`, and `.cache` directories in the user's home
+2. Installs Hex package manager with retry logic
+3. Installs Rebar build tool with retry logic
+4. Uses a marker file to prevent duplicate seeding
+5. Configures proper ownership and permissions
+
+Seeding is skipped if already completed or if the tools are already present.
+
+## Dependencies
+
+This feature requires:
+
+- `ghcr.io/devcontainers/features/common-utils`
+- Mise feature (included in Hakim base image)
+
+Unlike other features, Elixir installs its own system dependencies:
+- `ca-certificates`
+- `libncurses-dev`
+- `libssl-dev`
+- `openssl`
+
+## Verification
+
+After installation, verify Erlang and Elixir are working:
+
+```bash
+erl -version
+elixir --version
+mix --version
+```
+
+If user home seeding is enabled:
+
+```bash
+mix hex.info
+mix local
+```

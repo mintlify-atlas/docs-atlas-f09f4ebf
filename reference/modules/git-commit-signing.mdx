@@ -1,0 +1,61 @@
+---
+title: Git commit signing
+description: Configures Git to sign commits using your Coder SSH key
+icon: /icons/git.svg
+---
+
+<Warning>
+  This module will only work with Git versions >=2.34, prior versions [do not support signing commits via SSH keys](https://lore.kernel.org/git/xmqq8rxpgwki.fsf@gitster.g/).
+</Warning>
+
+This module downloads your SSH key from Coder and uses it to sign commits with Git. It requires `curl` and `jq` to be installed inside your workspace.
+
+## Usage
+
+```tf
+module "git-commit-signing" {
+  count    = data.coder_workspace.me.start_count
+  source   = "github.com/shekohex/hakim//coder/modules/git-commit-signing?ref=main"
+  agent_id = coder_agent.main.id
+}
+```
+
+## Prerequisites
+
+- Git >= 2.34
+- `curl` command-line tool
+- `jq` command-line JSON processor
+
+## Variables
+
+<ParamField path="agent_id" type="string" required>
+  The ID of a Coder agent.
+</ParamField>
+
+## How it works
+
+The module performs the following actions on workspace startup:
+
+1. Downloads your SSH key from the Coder API using the workspace agent credentials
+2. Stores the private key at `~/.ssh/git-commit-signing/coder`
+3. Stores the public key at `~/.ssh/git-commit-signing/coder.pub`
+4. Configures Git globally to:
+   - Use SSH format for GPG signing (`gpg.format ssh`)
+   - Enable commit signing by default (`commit.gpgsign true`)
+   - Use the downloaded SSH key as the signing key (`user.signingkey`)
+
+## Security considerations
+
+<Warning>
+  Using the SSH key that's part of your Coder account for commit signing means that in the event of a breach of your Coder account, or a malicious admin, someone could perform commit signing pretending to be you.
+</Warning>
+
+## Potential conflicts
+
+This module has a chance of conflicting with the user's dotfiles / the personalize module if one of those has configuration directives that overwrite this module's / each other's git configuration.
+
+If you experience issues, check your Git configuration:
+
+```bash
+git config --global --list | grep -E '(gpg|signing)'
+```

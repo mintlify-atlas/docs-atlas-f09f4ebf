@@ -1,0 +1,605 @@
+---
+title: Building custom images
+description: Build, customize, and distribute Hakim DevContainer images for Docker and Proxmox deployments
+---
+
+## Overview
+
+Hakim images are built using the DevContainer CLI and follow the DevContainer Features model. The build system creates multi-stage Docker images that are compatible with both Docker deployments and Proxmox LXC containers (when converted to OCI format).
+
+## Build script
+
+The `scripts/build.sh` script orchestrates the entire build process:
+
+```bash
+./scripts/build.sh [OPTIONS]
+```
+
+### Key features
+
+- Multi-stage Docker builds with BuildKit
+- Registry cache support (local and remote)
+- Version pinning for reproducible builds
+- Parallel feature installation
+- OCI-compatible output for Proxmox
+
+## Prerequisites
+
+<Steps>
+  <Step title="Install Docker">
+    Docker Engine 20.10+ with BuildKit support:
+    
+    ```bash
+    docker --version
+    docker buildx version
+    ```
+  </Step>
+  
+  <Step title="Install DevContainer CLI">
+    Install via npm:
+    
+    ```bash
+    npm install -g @devcontainers/cli
+    devcontainer --version
+    ```
+  </Step>
+  
+  <Step title="Optional: GitHub CLI for version fetching">
+    ```bash
+    # macOS
+    brew install gh
+    
+    # Ubuntu/Debian
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
+      sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | \
+      sudo tee /etc/apt/sources.list.d/github-cli.list
+    sudo apt update && sudo apt install gh
+    ```
+  </Step>
+</Steps>
+
+## Build options
+
+### Registry configuration
+
+```bash
+# Build with custom registry
+./scripts/build.sh --registry ghcr.io/myorg
+
+# Output images will be tagged as:
+# ghcr.io/myorg/hakim-base:latest
+# ghcr.io/myorg/hakim-php:latest
+# etc.
+```
+
+### Version pinning
+
+```bash
+# Pin specific tool versions
+./scripts/build.sh \
+  --coder-version 2.29.7 \
+  --code-version 4.109.2 \
+  --chrome-version 146.0.7680.31
+```
+
+Version ARGs in `devcontainers/base/Dockerfile`:
+
+```dockerfile
+# VERSION_UPDATE_BEGIN: coder
+ARG CODER_VERSION=2.29.7
+# VERSION_UPDATE_END: coder
+
+# VERSION_UPDATE_BEGIN: code-server
+ARG CODE_SERVER_VERSION=4.109.2
+# VERSION_UPDATE_END: code-server
+
+# VERSION_UPDATE_BEGIN: chrome
+ARG GOOGLE_CHROME_VERSION=146.0.7680.31
+# VERSION_UPDATE_END: chrome
+```
+
+### Auto-fetch latest versions
+
+```bash
+# Requires gh CLI and GITHUB_TOKEN
+./scripts/build.sh --fetch-latest
+
+# Fetches latest versions from:
+# - coder/coder
+# - coder/code-server
+# - Chrome for Testing stable
+```
+
+### Registry caching
+
+<Note>
+Registry caching requires a docker-container builder. The script auto-creates one if needed.
+</Note>
+
+```bash
+# Enable cache import/export to registry
+./scripts/build.sh \
+  --cache-repo ghcr.io/myorg/hakim-cache \
+  --cache-from-registry \
+  --cache-to-registry
+
+# GitHub Actions automatically uses gha cache
+```
+
+Cache layers:
+
+```bash
+ghcr.io/myorg/hakim-cache:base
+ghcr.io/myorg/hakim-cache:tooling
+ghcr.io/myorg/hakim-cache:variant-php
+ghcr.io/myorg/hakim-cache:variant-dotnet
+# etc.
+```
+
+### Push images
+
+```bash
+# Build and push to registry
+./scripts/build.sh --push
+
+# For docker-container builder, push happens during build (--push in buildx)
+# For default builder, images are loaded locally then pushed
+```
+
+## Build process
+
+The build happens in three stages:
+
+### Stage 1: Base image
+
+```bash
+info "Building Base Image..."
+docker buildx build \
+  ${BUILDX_ARGS[@]} \
+  ${BUILD_OUTPUT_ARGS[@]} \
+  ${SECRET_ARGS[@]} \
+  ${BASE_CACHE_ARGS[@]} \
+  ${BASE_VERSION_ARGS[@]} \
+  -t "$REGISTRY/hakim-base:latest" \
+  -t "$BASE_IMAGE_REF" \
+  devcontainers/base
+```
+
+**Builds**:
+- Debian Trixie slim base
+- Core system packages
+- Coder CLI and code-server
+- Docker CLI, compose, buildx
+- Chrome for Testing
+- mise with global tools
+- EternalTerminal (et) and SSH server
+
+### Stage 2: Tooling image
+
+```bash
+info "Building Tooling Image..."
+docker buildx build \
+  ${BUILDX_ARGS[@]} \
+  ${BUILD_OUTPUT_ARGS[@]} \
+  ${SECRET_ARGS[@]} \
+  ${TOOLING_CACHE_ARGS[@]} \
+  --build-arg "BASE_IMAGE=$BASE_IMAGE_REF" \
+  -t "$REGISTRY/hakim-tooling:latest" \
+  -t "$TOOLING_IMAGE_REF" \
+  devcontainers/tooling
+```
+
+**Adds**:
+- Additional development tools
+- Language-agnostic utilities
+- Common DevContainer features
+
+### Stage 3: Variant images
+
+```bash
+for variant in devcontainers/.devcontainer/images/*; do
+  variant_name=$(basename "$variant")
+  info "Building Variant: $variant_name..."
+  
+  # Inject tooling image reference
+  jq --arg image "$TOOLING_IMAGE_REF" '.image = $image' \
+    "$variant/.devcontainer/devcontainer.json" > "$tmp_config"
+  
+  # Build with DevContainer CLI
+  devcontainer build \
+    ${VARIANT_CACHE_ARGS[@]} \
+    ${DEVCONTAINER_OUTPUT_ARGS[@]} \
+    --workspace-folder devcontainers \
+    --config "$tmp_config" \
+    --image-name "$REGISTRY/hakim-$variant_name:latest" \
+    --image-name "$REGISTRY/hakim-$variant_name:$RUN_REF" .
+done
+```
+
+**Variants built**:
+- `hakim-base` (minimal)
+- `hakim-php` (PHP 8.4 + Laravel)
+- `hakim-dotnet` (.NET 10)
+- `hakim-js` (Node.js + Bun)
+- `hakim-rust` (Rust stable)
+- `hakim-elixir` (Elixir + Phoenix)
+
+## Adding a new feature
+
+Features are composable installation scripts in `devcontainers/.devcontainer/features/src/`.
+
+<Steps>
+  <Step title="Create feature directory">
+    ```bash
+    mkdir -p devcontainers/.devcontainer/features/src/myfeature
+    cd devcontainers/.devcontainer/features/src/myfeature
+    ```
+  </Step>
+  
+  <Step title="Add devcontainer-feature.json">
+    ```json
+    {
+      "id": "myfeature",
+      "version": "1.0.0",
+      "name": "My Feature",
+      "description": "Installs my awesome tool",
+      "options": {
+        "version": {
+          "type": "string",
+          "default": "latest",
+          "description": "Version to install"
+        }
+      },
+      "installsAfter": []
+    }
+    ```
+  </Step>
+  
+  <Step title="Write install.sh">
+    ```bash
+    #!/bin/bash
+    set -euo pipefail
+    
+    VERSION="${VERSION:-latest}"
+    
+    echo "Installing myfeature version $VERSION..."
+    
+    # Use mise for tool installation (preferred)
+    mise use -g myfeature@$VERSION
+    
+    # Or install manually
+    # curl -fsSL https://example.com/install.sh | bash
+    
+    echo "myfeature installed successfully"
+    ```
+    
+    Make it executable:
+    ```bash
+    chmod +x install.sh
+    ```
+  </Step>
+  
+  <Step title="Reference in variant">
+    Edit `devcontainers/.devcontainer/images/<variant>/.devcontainer/devcontainer.json`:
+    
+    ```json
+    {
+      "features": {
+        "../../../features/src/myfeature": {
+          "version": "1.2.3"
+        }
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+### Wrapping upstream features
+
+Reuse existing DevContainer features:
+
+```json
+{
+  "id": "nodejs",
+  "name": "Node.js via mise",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
+  }
+}
+```
+
+## Adding a new variant
+
+<Steps>
+  <Step title="Create variant directory">
+    ```bash
+    mkdir -p devcontainers/.devcontainer/images/myvariant/.devcontainer
+    ```
+  </Step>
+  
+  <Step title="Add devcontainer.json">
+    ```json
+    {
+      "name": "Hakim MyVariant",
+      "image": "ghcr.io/shekohex/hakim-tooling:latest",
+      "build": {
+        "args": {
+          "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+        }
+      },
+      "features": {
+        "../../../features/src/myfeature": {},
+        "../../../features/src/lazyvim": {}
+      },
+      "customizations": {
+        "vscode": {
+          "extensions": [
+            "example.vscode-extension"
+          ]
+        }
+      },
+      "remoteUser": "coder"
+    }
+    ```
+  </Step>
+  
+  <Step title="Build the variant">
+    ```bash
+    ./scripts/build.sh
+    # Output: ghcr.io/shekohex/hakim-myvariant:latest
+    ```
+  </Step>
+  
+  <Step title="Add to Coder template">
+    Edit `coder/templates/hakim/main.tf`:
+    
+    ```hcl
+    data "coder_parameter" "image_variant" {
+      option {
+        name        = "My Variant"
+        description = "Custom variant with my tools"
+        value       = "myvariant"
+        icon        = "/icon/custom.svg"
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+## Converting for Proxmox
+
+Hakim images are OCI-compatible and can be converted to Proxmox LXC templates.
+
+### Method 1: Docker save
+
+```bash
+# Pull image
+docker pull ghcr.io/shekohex/hakim-php:latest
+
+# Save to tar
+docker save ghcr.io/shekohex/hakim-php:latest -o hakim-php_latest.tar
+
+# Copy to Proxmox
+scp hakim-php_latest.tar root@proxmox:/var/lib/vz/template/cache/
+```
+
+### Method 2: Direct stream
+
+```bash
+docker save ghcr.io/shekohex/hakim-php:latest | \
+  ssh root@proxmox "cat > /var/lib/vz/template/cache/hakim-php_latest.tar"
+```
+
+### Method 3: Registry pull
+
+```bash
+# On Proxmox host
+pct pull ghcr.io/shekohex/hakim-php:latest \
+  local:vztmpl/hakim-php_latest.tar
+```
+
+<Warning>
+Proxmox's `pct pull` may not support all registry authentication methods. Use docker save for authenticated registries.
+</Warning>
+
+## Customizing base image
+
+The base Dockerfile is heavily optimized with caching layers:
+
+```dockerfile
+# Caching guidelines
+# - Keep version ARGs scoped to the stage that uses them
+# - Split external downloads into independent stages
+# - Avoid touching Stage 1 unless absolutely needed
+# - Prefer adding new stages over modifying shared ones
+```
+
+### Adding system packages
+
+Edit `devcontainers/base/Dockerfile`:
+
+```dockerfile
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  apt-get update && apt-get install -y --no-install-recommends \
+  curl wget jq unzip sudo bash \
+  mynewpackage \
+  anothernewpackage && \
+  rm -rf /var/lib/apt/lists/*
+```
+
+### Pinning Debian snapshot
+
+For reproducible builds:
+
+```dockerfile
+ARG DEBIAN_SNAPSHOT=20260201T000000Z
+
+RUN printf "deb http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT}/ trixie main\n" > /etc/apt/sources.list
+```
+
+## mise configuration
+
+Global tools are defined in `devcontainers/base/mise.toml`:
+
+```toml
+[tools]
+node = "lts"
+bun = "latest"
+starship = "latest"
+ripgrep = "latest"
+fd = "latest"
+bat = "latest"
+eza = "latest"
+tlrc = "latest"
+fzf = "latest"
+zoxide = "latest"
+jq = "latest"
+yq = "latest"
+gh = "latest"
+neovim = "stable"
+delta = "latest"
+lazygit = "latest"
+lazydocker = "latest"
+act = "latest"
+```
+
+Add tools:
+
+```toml
+[tools]
+mytool = "1.2.3"
+```
+
+mise downloads and installs during base image build:
+
+```dockerfile
+RUN --mount=type=cache,target=/root/.cache/mise,sharing=locked \
+  --mount=type=secret,id=github_token \
+  if [ -f /run/secrets/github_token ]; then 
+    export GITHUB_TOKEN=$(cat /run/secrets/github_token); 
+  fi && \
+  /usr/local/bin/mise install --yes
+```
+
+## GitHub Actions integration
+
+The build script detects GitHub Actions and enables optimizations:
+
+```bash
+if [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
+  info "Running in GitHub Actions, enabling registry cache import/export and push output."
+  USE_REGISTRY_CACHE_FROM=true
+  USE_REGISTRY_CACHE_TO=true
+fi
+```
+
+Example workflow:
+
+```yaml
+name: Build Images
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build images
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./scripts/build.sh \
+            --registry ghcr.io/${{ github.repository_owner }} \
+            --cache-repo ghcr.io/${{ github.repository_owner }}/hakim-cache \
+            --push
+```
+
+## Troubleshooting builds
+
+### BuildKit cache issues
+
+Clear BuildKit cache:
+```bash
+docker buildx prune -a
+```
+
+### DevContainer CLI errors
+
+Verify Docker socket:
+```bash
+docker ps
+export DOCKER_HOST=unix:///var/run/docker.sock
+```
+
+### mise installation failures
+
+Check GITHUB_TOKEN for rate limiting:
+```bash
+export GITHUB_TOKEN=ghp_...
+./scripts/build.sh
+```
+
+### Out of disk space
+
+```bash
+docker system df
+docker buildx du
+docker system prune -a --volumes
+```
+
+### Registry authentication
+
+Login before building:
+```bash
+docker login ghcr.io -u USERNAME -p TOKEN
+./scripts/build.sh --registry ghcr.io/USERNAME --push
+```
+
+## Best practices
+
+<CardGroup>
+  <Card title="Pin versions" icon="lock">
+    Use `--coder-version`, `--code-version`, `--chrome-version` for reproducible builds
+  </Card>
+  
+  <Card title="Use registry cache" icon="server">
+    Enable `--cache-from-registry` and `--cache-to-registry` for faster CI builds
+  </Card>
+  
+  <Card title="Tag builds" icon="tag">
+    Use `RUN_REF` for unique tags: `hakim-php:20260201120000`
+  </Card>
+  
+  <Card title="Test locally" icon="flask">
+    Build without `--push` first to validate changes
+  </Card>
+</CardGroup>
+
+## Next steps
+
+<CardGroup>
+  <Card title="Docker deployment" icon="docker" href="/deployment/docker">
+    Deploy built images with Docker
+  </Card>
+  <Card title="Proxmox deployment" icon="server" href="/deployment/proxmox">
+    Convert and deploy to Proxmox LXC
+  </Card>
+</CardGroup>

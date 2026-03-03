@@ -1,0 +1,81 @@
+---
+title: Node.js
+description: Install Node.js using Mise
+---
+
+Installs Node.js using [Mise](https://mise.jdx.dev/) with support for version selection and native module compilation via node-gyp.
+
+## Feature ID
+
+```
+nodejs
+```
+
+## Usage
+
+Add the feature to your `devcontainer.json`:
+
+```json
+{
+  "features": {
+    "../../../features/src/nodejs": {
+      "version": "22",
+      "nodeGypVersion": "12.2.0"
+    }
+  }
+}
+```
+
+## Options
+
+<ParamField path="version" type="string" default="24.13.0">
+  Select the version of Node.js to install.
+  
+  Supported values:
+  - `latest` - Latest stable release
+  - `lts` - Latest LTS release
+  - `24` - Node.js 24.x
+  - `22` - Node.js 22.x
+  - `20` - Node.js 20.x
+  - `18` - Node.js 18.x
+  - Any specific version number (e.g., `22.5.0`)
+</ParamField>
+
+<ParamField path="nodeGypVersion" type="string" default="12.2.0">
+  Select the version of node-gyp to install.
+  
+  node-gyp is a tool for compiling native Node.js modules. It's installed globally to support packages that require native compilation.
+</ParamField>
+
+## What gets installed
+
+This feature:
+
+1. Installs Node.js via Mise at the specified version
+2. Configures Mise to use Node.js globally
+3. Installs node-gyp globally for native module compilation
+4. Verifies the installation
+
+## Environment variables
+
+The feature sets up the following:
+
+- `MISE_YES=1` - Auto-confirms Mise prompts during installation
+- `MISE_DATA_DIR=/usr/local/share/mise` - Mise data directory
+- Node.js binaries are available via Mise shims in `/usr/local/share/mise/shims`
+
+## Dependencies
+
+This feature requires:
+
+- `ghcr.io/devcontainers/features/common-utils`
+- Mise feature (included in Hakim base image)
+
+## Verification
+
+After installation, verify Node.js is working:
+
+```bash
+node --version
+npm --version
+```

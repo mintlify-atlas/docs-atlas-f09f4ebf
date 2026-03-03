@@ -1,0 +1,102 @@
+---
+title: Bun
+description: Install Bun using Mise
+---
+
+Installs [Bun](https://bun.sh/), a fast JavaScript runtime and toolkit, using [Mise](https://mise.jdx.dev/).
+
+## Feature ID
+
+```
+bun
+```
+
+## Usage
+
+Add the feature to your `devcontainer.json`:
+
+```json
+{
+  "features": {
+    "../../../features/src/bun": {
+      "version": "1.3"
+    }
+  }
+}
+```
+
+## Options
+
+<ParamField path="version" type="string" default="1.3.9">
+  Select the version of Bun to install.
+  
+  Supported values:
+  - `latest` - Latest stable release
+  - `1.3` - Bun 1.3.x
+  - `1.2` - Bun 1.2.x
+  - `1.1` - Bun 1.1.x
+  - `1.0` - Bun 1.0.x
+  - Any specific version number (e.g., `1.3.9`)
+</ParamField>
+
+## What gets installed
+
+This feature:
+
+1. Installs Bun via Mise at the specified version
+2. Configures Mise to use Bun globally
+3. Verifies the installation
+
+## About Bun
+
+Bun is an all-in-one JavaScript runtime and toolkit that includes:
+
+- Fast JavaScript/TypeScript runtime
+- Built-in bundler, transpiler, and task runner
+- npm-compatible package manager
+- Native testing framework
+- SQLite, WebSocket, and other built-in APIs
+
+Bun is designed as a drop-in replacement for Node.js with significantly faster startup times and performance.
+
+## Environment variables
+
+The feature sets up:
+
+- `MISE_YES=1` - Auto-confirms Mise prompts during installation
+- `MISE_DATA_DIR=/usr/local/share/mise` - Mise data directory
+- Bun binaries are available via Mise shims in `/usr/local/share/mise/shims`
+
+## Dependencies
+
+This feature requires:
+
+- `ghcr.io/devcontainers/features/common-utils`
+- Mise feature (included in Hakim base image)
+
+## Verification
+
+After installation, verify Bun is working:
+
+```bash
+bun --version
+```
+
+## Using Bun with Node.js
+
+You can install both Bun and Node.js features side-by-side:
+
+```json
+{
+  "features": {
+    "../../../features/src/nodejs": {
+      "version": "22"
+    },
+    "../../../features/src/bun": {
+      "version": "latest"
+    }
+  }
+}
+```
+
+This allows you to use Bun for its fast package manager and runtime while maintaining Node.js compatibility.

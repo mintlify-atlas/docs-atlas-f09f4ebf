@@ -1,0 +1,115 @@
+---
+title: Android image
+description: Android SDK and NDK with Java development environment
+---
+
+The `hakim-android` image provides a complete Android development environment with the Android SDK, NDK, emulator support, and Java runtime.
+
+## Included runtimes
+
+This image inherits from `hakim-tooling`, which includes:
+
+<ParamField path="Node.js" type="string">
+  24.12.0 (LTS)
+</ParamField>
+
+<ParamField path="Bun" type="string">
+  1.3.9
+</ParamField>
+
+<ParamField path="node-gyp" type="string">
+  12.2.0
+</ParamField>
+
+<ParamField path="uv (Python package manager)" type="string">
+  0.9.24
+</ParamField>
+
+<ParamField path="Python" type="string">
+  3.12.12
+</ParamField>
+
+<ParamField path="OpenCode" type="string">
+  1.2.15
+</ParamField>
+
+## Java runtime
+
+<ParamField path="Java" type="string">
+  17
+</ParamField>
+
+OpenJDK 17 is installed as the Java runtime for Android development.
+
+## Android SDK
+
+<ParamField path="SDK Root" type="string">
+  /usr/local/share/android-sdk
+</ParamField>
+
+<ParamField path="Command Line Tools" type="string">
+  14742923
+</ParamField>
+
+<ParamField path="Build Tools" type="string">
+  36.1.0
+</ParamField>
+
+<ParamField path="Platforms" type="string">
+  android-36, android-35
+</ParamField>
+
+<ParamField path="Sources" type="boolean">
+  Included
+</ParamField>
+
+<ParamField path="Emulator" type="boolean">
+  Installed
+</ParamField>
+
+<ParamField path="System Image" type="string">
+  system-images;android-36;google_apis;x86_64
+</ParamField>
+
+All Android SDK licenses are automatically accepted during installation.
+
+## Android NDK
+
+<ParamField path="NDK Version" type="string">
+  29.0.14206865
+</ParamField>
+
+<ParamField path="CMake" type="string">
+  4.1.2
+</ParamField>
+
+<ParamField path="Additional CMake" type="string">
+  3.22.1
+</ParamField>
+
+The NDK and multiple CMake versions are installed for native development and building C/C++ components.
+
+## Editor tooling
+
+<ParamField path="LazyVim" type="string">
+  Configured
+</ParamField>
+
+Pre-configured Neovim distribution with IDE-like features.
+
+## VS Code extensions
+
+The following extensions are pre-configured:
+
+- `vscjava.vscode-java-pack` - Java language support and tooling
+- `vscjava.vscode-gradle` - Gradle build tool integration
+- `Kotlin.kotlin` - Kotlin language support
+
+## Base tooling
+
+Inherits all tools from the [base image](/reference/images/base), including:
+
+- Docker CLI, Compose, and Buildx
+- Coder agent and code-server
+- Chrome for Testing and ChromeDriver
+- Mise with common CLI tools (ripgrep, fd, fzf, etc.)

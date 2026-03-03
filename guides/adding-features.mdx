@@ -1,0 +1,359 @@
+---
+title: Adding features
+description: Learn how to create custom DevContainer features for Hakim
+---
+
+Hakim uses DevContainer features to compose tooling into images. Features are modular, reusable components that install specific tools or runtimes. This guide shows you how to create your own.
+
+## Understanding features
+
+Features follow the [DevContainer Features specification](https://containers.dev/implementors/features/). Each feature is a self-contained directory with metadata and installation logic.
+
+### Feature structure
+
+Every feature lives in `devcontainers/.devcontainer/features/src/<feature-name>` and requires:
+
+- `devcontainer-feature.json` - Metadata and options
+- `install.sh` - Installation script
+
+<Tip>
+Prefer wrapping upstream features or using `mise` for tool installation over writing raw install scripts. This follows Hakim's composability pattern.
+</Tip>
+
+## Creating a simple feature
+
+Let's create a feature that installs a tool via `mise`. We'll use the existing `bun` feature as a reference.
+
+<Steps>
+  <Step title="Create the feature directory">
+    Create a new directory under the features source path:
+
+    ```bash
+    mkdir -p devcontainers/.devcontainer/features/src/your-tool
+    cd devcontainers/.devcontainer/features/src/your-tool
+    ```
+  </Step>
+
+  <Step title="Add the feature metadata">
+    Create `devcontainer-feature.json` with your feature configuration:
+
+    ```json devcontainer-feature.json
+    {
+      "name": "Bun (via Mise)",
+      "id": "bun",
+      "version": "1.0.1",
+      "description": "Installs Bun using Mise.",
+      "options": {
+        "version": {
+          "type": "string",
+          "proposals": [
+            "latest",
+            "1.3",
+            "1.2"
+          ],
+          "default": "1.3.9",
+          "description": "Select the version of Bun to install."
+        }
+      },
+      "installsAfter": [
+        "ghcr.io/devcontainers/features/common-utils",
+        "../../mise"
+      ]
+    }
+    ```
+
+    **Key properties:**
+    - `id` - Unique identifier used when referencing the feature
+    - `options` - User-configurable parameters
+    - `installsAfter` - Dependencies that must install first
+  </Step>
+
+  <Step title="Write the installation script">
+    Create `install.sh` with the installation logic:
+
+    ```bash install.sh
+    #!/bin/bash
+    set -e
+
+    VERSION=${VERSION:-"1.3.9"}
+
+    echo "Installing Bun ${VERSION} via Mise..."
+
+    export MISE_YES=1
+    export MISE_DATA_DIR=/usr/local/share/mise
+
+    # Source mise profile to ensure we have shims in PATH
+    if [ -f /etc/profile.d/mise.sh ]; then
+        source /etc/profile.d/mise.sh
+    fi
+
+    echo "Installing Bun via mise..."
+    mise use --global bun@${VERSION}
+
+    echo "Bun installed!"
+
+    # Verify installation
+    source /etc/profile.d/mise.sh
+    bun --version
+    ```
+
+    Make it executable:
+
+    ```bash
+    chmod +x install.sh
+    ```
+  </Step>
+
+  <Step title="Test your feature">
+    Reference your feature in a variant's `devcontainer.json`:
+
+    ```json
+    {
+      "features": {
+        "../../../features/src/your-tool": {
+          "version": "latest"
+        }
+      }
+    }
+    ```
+
+    Build the variant to test:
+
+    ```bash
+    ./scripts/build.sh
+    ```
+  </Step>
+</Steps>
+
+## Advanced patterns
+
+### Using mise for runtime installation
+
+The `nodejs` feature demonstrates installing runtimes with configurable versions:
+
+```json devcontainers/.devcontainer/features/src/nodejs/devcontainer-feature.json
+{
+  "name": "Node.js (via Mise)",
+  "id": "nodejs",
+  "version": "1.0.1",
+  "description": "Installs Node.js using Mise.",
+  "options": {
+    "version": {
+      "type": "string",
+      "proposals": ["latest", "lts", "24", "22", "20"],
+      "default": "24.13.0",
+      "description": "Select the version of Node.js to install."
+    },
+    "nodeGypVersion": {
+      "type": "string",
+      "default": "12.2.0",
+      "description": "Select the version of node-gyp to install."
+    }
+  }
+}
+```
+
+The install script then uses these options:
+
+```bash devcontainers/.devcontainer/features/src/nodejs/install.sh
+VERSION=${VERSION:-"24.13.0"}
+NODE_GYP_VERSION=${NODE_GYP_VERSION:-${NODEGYPVERSION:-"12.2.0"}}
+
+mise use --global node@${VERSION}
+
+# Install build tools
+export NPM_CONFIG_CACHE=/tmp/.npm
+npm install -g "node-gyp@${NODE_GYP_VERSION}"
+rm -rf /tmp/.npm /root/.npm
+```
+
+### Complex multi-runtime features
+
+The `elixir` feature shows installing multiple related tools and seeding user home:
+
+<CodeGroup>
+```json devcontainers/.devcontainer/features/src/elixir/devcontainer-feature.json
+{
+  "name": "Elixir (via Mise)",
+  "id": "elixir",
+  "version": "1.0.0",
+  "description": "Installs Erlang/OTP and Elixir using Mise. Configures Mix/Hex to use user home directories.",
+  "options": {
+    "erlangVersion": {
+      "type": "string",
+      "proposals": ["28.3.1", "27", "26", "latest"],
+      "default": "28.3.1"
+    },
+    "elixirVersion": {
+      "type": "string",
+      "proposals": ["1.19.5", "1.17", "1.16", "latest"],
+      "default": "1.19.5"
+    },
+    "seedUserHome": {
+      "type": "boolean",
+      "default": true,
+      "description": "Install Hex/Rebar into the runtime user home during image build."
+    }
+  }
+}
+```
+
+```bash devcontainers/.devcontainer/features/src/elixir/install.sh
+#!/bin/bash
+set -euo pipefail
+
+ERLANG_VERSION=${ERLANG_VERSION:-${ERLANGVERSION:-"28.3.1"}}
+ELIXIR_VERSION=${ELIXIR_VERSION:-${ELIXIRVERSION:-"1.19.5"}}
+
+export MISE_YES=1
+export MISE_DATA_DIR=/usr/local/share/mise
+
+# Install system dependencies
+apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates libncurses-dev libssl-dev openssl
+
+# Install Erlang and Elixir
+mise use --global "erlang@${ERLANG_VERSION}"
+
+INSTALLED_OTP_MAJOR=$(erl -noshell -eval 'io:format("~s", [erlang:system_info(otp_release)]), halt().' 2>/dev/null)
+ELIXIR_SPEC="${ELIXIR_VERSION}-otp-${INSTALLED_OTP_MAJOR}"
+
+mise use --global "elixir@${ELIXIR_SPEC}"
+
+# Configure Mix/Hex environment
+cat << 'EOF' > /etc/profile.d/elixir-mix.sh
+export MIX_HOME="$HOME/.mix"
+export HEX_HOME="$HOME/.hex"
+export MIX_ARCHIVES="$MIX_HOME/archives"
+EOF
+chmod +x /etc/profile.d/elixir-mix.sh
+```
+</CodeGroup>
+
+### Wrapping upstream features
+
+The `phoenix` feature wraps functionality by depending on the `elixir` feature:
+
+```json devcontainers/.devcontainer/features/src/phoenix/devcontainer-feature.json
+{
+  "name": "Phoenix Framework",
+  "id": "phoenix",
+  "version": "1.0.0",
+  "description": "Installs the Phoenix installer (phx_new) and OS dependencies for file watching.",
+  "options": {
+    "version": {
+      "type": "string",
+      "proposals": ["latest", "1.7.18", "1.7.17"],
+      "default": "1.8.3"
+    },
+    "seedUserHome": {
+      "type": "boolean",
+      "default": true,
+      "description": "Install phx_new into the runtime user home during image build."
+    }
+  },
+  "installsAfter": [
+    "ghcr.io/devcontainers/features/common-utils",
+    "../../../features/src/elixir"
+  ]
+}
+```
+
+<Note>
+The `installsAfter` array ensures `elixir` is installed before `phoenix`, giving you access to Mix for installing Phoenix.
+</Note>
+
+### Installing PHP extensions with PIE
+
+The `pie` feature demonstrates installing multiple extensions from a list:
+
+```json devcontainers/.devcontainer/features/src/pie/devcontainer-feature.json
+{
+  "name": "PIE (PHP Installer for Extensions)",
+  "id": "pie",
+  "version": "1.0.0",
+  "description": "Installs PIE and optional PHP extensions.",
+  "options": {
+    "version": {
+      "type": "string",
+      "proposals": ["latest", "1.3.8"],
+      "default": "latest"
+    },
+    "extensions": {
+      "type": "array",
+      "default": [],
+      "description": "Extensions to install. Supports PIE package names (e.g. phpredis/phpredis) and bundled names: pcntl, sockets."
+    }
+  },
+  "installsAfter": [
+    "ghcr.io/devcontainers/features/php"
+  ]
+}
+```
+
+Usage in a variant:
+
+```json devcontainers/.devcontainer/images/php/.devcontainer/devcontainer.json
+{
+  "features": {
+    "../../../features/src/pie": {
+      "version": "latest",
+      "extensions": [
+        "phpredis/phpredis",
+        "apcu/apcu",
+        "imagick/imagick",
+        "xdebug/xdebug",
+        "pcntl",
+        "sockets"
+      ]
+    }
+  }
+}
+```
+
+## Best practices
+
+<CardGroup cols={2}>
+  <Card title="Use mise for runtimes" icon="wrench">
+    Install language runtimes through `mise` for consistent version management across all features.
+  </Card>
+  
+  <Card title="Set proper defaults" icon="sliders">
+    Provide sensible default versions in your `devcontainer-feature.json` so features work out of the box.
+  </Card>
+  
+  <Card title="Handle errors gracefully" icon="shield-check">
+    Always use `set -e` or `set -euo pipefail` in install scripts to fail fast on errors.
+  </Card>
+  
+  <Card title="Clean up after install" icon="broom">
+    Remove temporary files and caches (like `/root/.cache/mise`) at the end of your install script.
+  </Card>
+</CardGroup>
+
+## Testing your feature
+
+After creating a feature, test it by:
+
+1. Adding it to an existing variant's `devcontainer.json`
+2. Running `./scripts/build.sh` to build all images
+3. Creating a Coder workspace with that variant
+4. Verifying the tool is available and working
+
+```bash
+# Example: Test that Bun is installed correctly
+$ bun --version
+1.3.9
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Creating variants" href="/guides/creating-variants" icon="layer-group">
+    Learn how to combine features into new image variants
+  </Card>
+  
+  <Card title="Customizing templates" href="/guides/customizing-templates" icon="code">
+    Customize the Coder template to expose your new features
+  </Card>
+</CardGroup>

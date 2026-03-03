@@ -1,0 +1,612 @@
+---
+title: Workspace lifecycle management
+description: Create, configure, and manage Coder workspaces with Hakim templates
+icon: server
+---
+
+Hakim provides comprehensive Coder workspace templates with built-in lifecycle management, persistent storage, and operational tooling.
+
+## Workspace templates
+
+Hakim includes two primary templates:
+
+<CardGroup cols={2}>
+  <Card title="Docker template" icon="docker" href="https://github.com/shekohex/hakim/tree/main/coder/templates/hakim">
+    Docker-based workspaces with DevContainer images
+  </Card>
+  <Card title="Proxmox template" icon="cube" href="https://github.com/shekohex/hakim/tree/main/coder/templates/hakim-proxmox">
+    LXC containers on Proxmox with persistent home disk
+  </Card>
+</CardGroup>
+
+Both templates share common features:
+
+- Image variant selection (base, PHP, .NET, Rust, JS, Elixir, Android)
+- Git repository auto-clone
+- OpenCode AI integration
+- EternalTerminal resilient SSH
+- Environment variable injection
+- Custom startup scripts
+
+## Creating a workspace
+
+### Basic workflow
+
+<Steps>
+  <Step title="Select template">
+    In Coder UI, choose "hakim" or "hakim-proxmox" template
+  </Step>
+  
+  <Step title="Configure environment">
+    Select your image variant:
+    - **Base** - Minimal Debian with mise, Docker client, core utils
+    - **PHP** - Laravel with PHP 8.4, Node.js, Bun
+    - **.NET** - .NET 10.0 SDK with Node.js, Bun
+    - **Rust** - Rust stable with Node.js, Bun
+    - **JS** - Node.js LTS and Bun
+    - **Elixir** - Elixir, Phoenix, PostgreSQL tools, Node.js, Bun
+    - **Android** - Android SDK, Java 17, NDK r29
+    - **Custom** - Specify your own image URL
+  </Step>
+  
+  <Step title="Git repository (optional)">
+    Enter a Git URL to auto-clone on workspace startup:
+    
+    ```
+    https://github.com/yourusername/yourproject.git
+    ```
+  </Step>
+  
+  <Step title="OpenCode credentials (optional)">
+    Paste your OpenCode auth.json for AI assistance:
+    
+    ```json
+    {
+      "anthropic": {
+        "type": "api",
+        "key": "sk-ant-api03-xxx"
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Additional configuration">
+    Configure:
+    - Environment variables (default_env, secret_env)
+    - Preview app port (default: 3000)
+    - Custom startup script
+    - Enable/disable ET, tmux, Zed, etc.
+  </Step>
+  
+  <Step title="Create workspace">
+    Click "Create Workspace" - provisioning takes 1-3 minutes
+  </Step>
+</Steps>
+
+## Template parameters
+
+### Core parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|--------|
+| `image_variant` | Workspace image variant | `base` |
+| `image_url` | Custom image URL (if variant=custom) | `""` |
+| `git_url` | Repository to clone on startup | `""` |
+| `preview_port` | Preview app port | `3000` |
+| `setup_script` | Custom startup shell script | `""` |
+
+### Git configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|--------|
+| `git_user_name` | Git user.name | `""` |
+| `git_user_email` | Git user.email | `""` |
+| `git_global_gitconfig` | Raw gitconfig entries | (see template) |
+| `git_credential_helper` | Credential storage method | `store` |
+
+### Environment variables
+
+| Parameter | Description | Default |
+|-----------|-------------|--------|
+| `default_env` | Public environment variables (JSON) | `{}` |
+| `secret_env` | Secret environment variables (JSON) | `{}` |
+
+<Info>
+  Environment variables are injected via `/etc/environment.d/` for session-wide availability.
+</Info>
+
+### Operational features
+
+| Parameter | Description | Default |
+|-----------|-------------|--------|
+| `enable_et` | Enable EternalTerminal resilient SSH | `true` |
+| `enable_coder_login` | Auto-login to Coder in workspace | `true` |
+| `enable_git_commit_signing` | Use Coder SSH key for commit signing | `true` |
+| `enable_zed` | Show Zed launcher app | `true` |
+| `enable_tmux` | Install tmux with persistence | `true` |
+
+### OpenCode integration
+
+| Parameter | Description | Default |
+|-----------|-------------|--------|
+| `opencode_auth` | OpenCode auth.json content | `{}` |
+| `opencode_config` | OpenCode configuration JSON | `{}` |
+
+## Workspace lifecycle
+
+### Start sequence
+
+When a workspace starts:
+
+```mermaid
+sequenceDiagram
+    participant T as Template
+    participant A as Coder Agent
+    participant B as Bootstrap Script
+    participant M as Modules
+    participant W as Workspace
+    
+    T->>A: Provision resources
+    A->>B: Execute bootstrap.sh
+    B->>B: Configure environment
+    B->>B: Clone git repository
+    B->>B: Inject env vars
+    B->>M: Start ET module
+    M->>W: etserver + sshd running
+    B->>M: Start OpenCode module
+    M->>W: OpenCode server running
+    B->>B: Run setup_script
+    B->>A: Report ready
+    A->>T: Workspace running
+```
+
+### Stop/restart behavior
+
+<Tabs>
+  <Tab title="Docker template">
+    - **Stop** - Container is stopped, filesystem persists via Docker volume
+    - **Restart** - Container restarts from stopped state, bootstrap skipped
+    - **Rebuild** - Container recreated, bootstrap runs again
+    - **Delete** - Container and volume removed (data lost unless backed up)
+  </Tab>
+  
+  <Tab title="Proxmox template">
+    - **Stop** - LXC container stopped
+    - **Restart** - LXC restarts, home disk persists if `enable_home_disk=true`
+    - **Rebuild** - New container created, home disk reattached if enabled
+    - **Delete** - Container deleted, home disk persists separately
+  </Tab>
+</Tabs>
+
+### Persistence model
+
+**Docker template:**
+- Workspace data: Docker volume at `/home/coder`
+- Docker data: `/home/coder/.local/share/docker` (if Docker-in-Docker enabled)
+
+**Proxmox template:**
+- System: LXC rootfs (ephemeral on rebuild)
+- Home: Separate disk at `/home/coder` (persists across rebuilds if `enable_home_disk=true`)
+- Docker: `/home/coder/.local/share/docker` (on home disk)
+
+<Warning>
+  Always enable `enable_home_disk=true` in Proxmox template to preserve data across rebuilds.
+</Warning>
+
+## Bootstrap script
+
+The bootstrap script (`bootstrap.sh`) handles workspace initialization:
+
+### Bootstrap phases
+
+<Steps>
+  <Step title="Environment setup">
+    - Creates directory structure (`/home/coder/.config`, `/home/coder/.local`, etc.)
+    - Sets up environment.d for variable injection
+    - Configures shell environment
+  </Step>
+  
+  <Step title="Git configuration">
+    - Sets `user.name` and `user.email` if provided
+    - Writes global gitconfig from parameter
+    - Configures credential helper
+    - Sets up LFS if needed
+  </Step>
+  
+  <Step title="Repository clone">
+    If `git_url` is set:
+    
+    ```bash
+    git clone "${GIT_URL}" "${HOME}/project"
+    cd "${HOME}/project"
+    ```
+  </Step>
+  
+  <Step title="Environment injection">
+    Writes `default_env` and `secret_env` to `/etc/environment.d/50-workspace.conf`:
+    
+    ```bash
+    export FOO="bar"
+    export SECRET_KEY="xyz"
+    ```
+  </Step>
+  
+  <Step title="Module activation">
+    Triggers Coder scripts (modules) to start:
+    - ET module (if enabled)
+    - OpenCode module
+    - Other configured modules
+  </Step>
+  
+  <Step title="Custom script">
+    Executes `setup_script` parameter if provided
+  </Step>
+</Steps>
+
+### Custom setup scripts
+
+Use `setup_script` parameter for workspace-specific initialization:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+# Install project dependencies
+cd ~/project
+bun install
+
+# Set up database
+psql -c "CREATE DATABASE myapp_dev;"
+
+# Run migrations
+bun run migrate
+
+echo "Setup complete!"
+```
+
+<Info>
+  Setup scripts run as user `coder` after all modules start. Use `sudo` if you need root privileges.
+</Info>
+
+## Workspace apps
+
+Workspaces include several built-in apps accessible from Coder UI:
+
+### Default apps
+
+| App | Description | Port |
+|-----|-------------|------|
+| **OpenCode** | AI assistant web UI | 4096 |
+| **Preview** | Application preview | 3000 (configurable) |
+| **Zed** | Zed editor launcher | - |
+| **Terminal** | Web terminal (ttyd) | - |
+
+### Custom apps
+
+Add custom apps via template modifications:
+
+```hcl
+resource "coder_app" "grafana" {
+  agent_id     = coder_agent.main.id
+  slug         = "grafana"
+  display_name = "Grafana"
+  url          = "http://localhost:3001"
+  icon         = "/icon/grafana.svg"
+  subdomain    = true
+  share        = "owner"
+  
+  healthcheck {
+    url       = "http://localhost:3001/api/health"
+    interval  = 5
+    threshold = 15
+  }
+}
+```
+
+## Environment variables
+
+### Injection methods
+
+<Tabs>
+  <Tab title="Via parameters">
+    Use `default_env` or `secret_env` parameters:
+    
+    ```json
+    {
+      "NODE_ENV": "development",
+      "API_URL": "https://api.example.com"
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Via .env file">
+    Create `.env` in your project after workspace starts:
+    
+    ```bash
+    cat > ~/project/.env <<EOF
+    DATABASE_URL=postgres://user:pass@localhost/db
+    SECRET_KEY=xyz123
+    EOF
+    ```
+  </Tab>
+  
+  <Tab title="Via startup script">
+    Use `setup_script` to generate environment:
+    
+    
+    ```bash
+    #!/bin/bash
+    # Fetch secrets from vault
+    SECRET=$(vault kv get -field=value secret/myapp)
+    echo "export SECRET_KEY=$SECRET" >> ~/.bashrc
+    ```
+  </Tab>
+</Tabs>
+
+### Default environment
+
+Workspaces include these pre-configured variables:
+
+```bash
+HOME=/home/coder
+USER=coder
+PATH=/usr/local/bin:/usr/bin:/bin
+MISE_INSTALL_PATH=/usr/local/bin/mise
+MISE_DATA_DIR=/usr/local/share/mise
+MISE_CONFIG_DIR=/etc/mise
+```
+
+## Resource management
+
+### Docker template resources
+
+Configure in `main.tf`:
+
+```hcl
+resource "docker_container" "workspace" {
+  # CPU limit (1.0 = 1 core)
+  cpu_shares = 1024
+  
+  # Memory limit
+  memory = 4096  # 4GB
+  
+  # Swap
+  memory_swap = 8192  # 8GB total (4GB RAM + 4GB swap)
+}
+```
+
+### Proxmox template resources
+
+Configure via template parameters:
+
+| Parameter | Description | Default |
+|-----------|-------------|--------|
+| `cpu_cores` | Number of CPU cores | `2` |
+| `memory_mb` | RAM in MB | `4096` |
+| `disk_size_gb` | Root disk size | `32` |
+| `home_disk_size_gb` | Home disk size | `64` |
+
+## Workspace presets
+
+Templates define presets for common configurations:
+
+```hcl
+resource "coder_workspace_preset" "laravel" {
+  name         = "Laravel Development"
+  description  = "PHP 8.4, Laravel, PostgreSQL"
+  icon         = "/icon/php.svg"
+  
+  parameter {
+    name  = "image_variant"
+    value = "php"
+  }
+  
+  parameter {
+    name  = "setup_script"
+    value = <<-EOF
+      #!/bin/bash
+      composer create-project laravel/laravel ~/project
+      cd ~/project
+      php artisan key:generate
+    EOF
+  }
+}
+```
+
+## Troubleshooting
+
+### Workspace won't start
+
+<AccordionGroup>
+  <Accordion title="Check Coder agent logs">
+    ```bash
+    coder workspace logs <workspace-name>
+    ```
+    
+    Look for errors in bootstrap script or module initialization.
+  </Accordion>
+  
+  <Accordion title="Verify image availability">
+    For Docker template:
+    
+    ```bash
+    docker pull ghcr.io/shekohex/hakim-base:latest
+    ```
+    
+    For Proxmox template, verify image is in vztmpl storage.
+  </Accordion>
+  
+  <Accordion title="Check resource availability">
+    Ensure sufficient:
+    - CPU cores
+    - RAM
+    - Disk space
+    - Network connectivity
+  </Accordion>
+</AccordionGroup>
+
+### Git clone failures
+
+<Steps>
+  <Step title="Verify repository URL">
+    Test access from another machine:
+    
+    ```bash
+    git ls-remote <your-git-url>
+    ```
+  </Step>
+  
+  <Step title="Check authentication">
+    For private repos:
+    - Use SSH URL with Coder SSH key
+    - Or HTTPS with credential helper
+  </Step>
+  
+  <Step title="Review bootstrap logs">
+    ```bash
+    coder workspace logs <workspace-name> | grep -i git
+    ```
+  </Step>
+</Steps>
+
+### Module startup issues
+
+**ET module not starting:**
+
+```bash
+# Inside workspace
+ps aux | grep etserver
+ps aux | grep sshd
+
+# Check logs
+cat ~/.local/share/hakim-et/et.log
+cat ~/.local/share/hakim-et/sshd.log
+```
+
+**OpenCode module not starting:**
+
+```bash
+# Check if installed
+which opencode
+
+# Check supervisor
+tail -f /tmp/opencode-supervisor.log
+tail -f /tmp/opencode-serve.log
+```
+
+### Data persistence
+
+<AccordionGroup>
+  <Accordion title="Docker: Verify volume">
+    ```bash
+    docker volume ls | grep coder-<workspace>
+    docker volume inspect coder-<workspace>-home
+    ```
+  </Accordion>
+  
+  <Accordion title="Proxmox: Check home disk">
+    Inside workspace:
+    
+    ```bash
+    df -h /home/coder
+    lsblk
+    ```
+    
+    Should show separate mount for `/home/coder`.
+  </Accordion>
+</AccordionGroup>
+
+## Best practices
+
+### Security
+
+<CardGroup cols={2}>
+  <Card title="Use secret_env for credentials" icon="lock">
+    Never put secrets in `default_env` or public parameters
+  </Card>
+  <Card title="Enable commit signing" icon="signature">
+    Set `enable_git_commit_signing=true` for verified commits
+  </Card>
+  <Card title="Rotate OpenCode keys" icon="key">
+    Update `opencode_auth` periodically
+  </Card>
+  <Card title="Use Coder RBAC" icon="users">
+    Restrict template access via Coder groups
+  </Card>
+</CardGroup>
+
+### Performance
+
+- **Resource sizing** - Start small, scale up as needed
+- **Image selection** - Use minimal `base` variant unless specific runtime needed
+- **Docker-in-Docker** - Disable if not building containers
+- **Home disk (Proxmox)** - Enable for faster rebuilds
+
+### Development workflow
+
+1. **Create template workspace** - Select appropriate image variant
+2. **Clone your project** - Use `git_url` parameter or clone manually
+3. **Configure tools** - Install project-specific dependencies in `setup_script`
+4. **Connect via ET SSH** - Use resilient SSH for development
+5. **Use OpenCode** - Access AI assistance via web UI
+6. **Preview apps** - Use preview port for testing
+7. **Commit & push** - Work normally, commits auto-signed if enabled
+
+## Advanced topics
+
+### Custom image variants
+
+Create your own DevContainer image:
+
+1. Add to `devcontainers/.devcontainer/images/<variant>/`
+2. Create `devcontainer.json` inheriting from `hakim-base`
+3. Add features from `../../../features/src/<feature>`
+4. Build with `./scripts/build.sh`
+5. Update template parameter options
+
+### Template modification
+
+Fork and customize the template:
+
+```bash
+git clone https://github.com/shekohex/hakim.git
+cd hakim/coder/templates/hakim
+
+# Edit main.tf
+vim main.tf
+
+# Validate
+terraform fmt -recursive
+terraform validate
+
+# Push to Coder
+coder templates push hakim -d .
+```
+
+### Multi-container workspaces
+
+Add sidecar containers for databases, caches, etc.:
+
+```hcl
+resource "docker_container" "postgres" {
+  image = "postgres:16"
+  name  = "coder-${data.coder_workspace.me.name}-postgres"
+  
+  env = [
+    "POSTGRES_PASSWORD=secret",
+    "POSTGRES_DB=myapp"
+  ]
+  
+  networks_advanced {
+    name = docker_network.workspace.id
+  }
+}
+```
+
+## References
+
+- [Coder Templates Documentation](https://coder.com/docs/templates)
+- [Coder Terraform Provider](https://registry.terraform.io/providers/coder/coder/latest/docs)
+- [DevContainer Specification](https://containers.dev/)
+- [Hakim Templates Source](https://github.com/shekohex/hakim/tree/main/coder/templates)
+- [Hakim Images Source](https://github.com/shekohex/hakim/tree/main/devcontainers)

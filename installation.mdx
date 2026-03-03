@@ -1,0 +1,803 @@
+---
+title: Installation
+description: Complete setup guide for Hakim with prerequisites and configuration
+---
+
+This guide covers the complete installation process for Hakim, including prerequisites, building custom images, and advanced configuration.
+
+## Prerequisites
+
+Before installing Hakim, ensure you have the following tools installed:
+
+<AccordionGroup>
+  <Accordion title="Required for all deployments">
+    ### Coder CLI
+    
+    Install the Coder CLI following the [official installation guide](https://coder.com/docs/install):
+    
+    <CodeGroup>
+    ```bash macOS
+    brew install coder/coder/coder
+    ```
+    
+    ```bash Linux
+    curl -fsSL https://coder.com/install.sh | sh
+    ```
+    
+    ```bash Windows
+    winget install Coder.Coder
+    ```
+    </CodeGroup>
+    
+    Verify installation:
+    
+    ```bash
+    coder version
+    ```
+  </Accordion>
+  
+  <Accordion title="Required for Docker template">
+    ### Docker
+    
+    Install Docker Engine or Docker Desktop:
+    
+    - **Docker Desktop**: [https://www.docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop)
+    - **Docker Engine**: [https://docs.docker.com/engine/install/](https://docs.docker.com/engine/install/)
+    
+    Verify installation:
+    
+    ```bash
+    docker --version
+    docker ps
+    ```
+    
+    <Warning>
+      The Docker daemon must be running and accessible to the Coder server. For remote Docker hosts, configure the Docker provider in the template.
+    </Warning>
+  </Accordion>
+  
+  <Accordion title="Required for Proxmox template">
+    ### Proxmox VE
+    
+    The Proxmox template requires:
+    
+    - Proxmox VE 7.0 or later
+    - API access with appropriate privileges
+    - Pre-pulled LXC templates in `vztmpl` storage
+    
+    See the [Proxmox template README](https://github.com/shekohex/hakim/tree/main/coder/templates/hakim-proxmox) for detailed setup instructions.
+  </Accordion>
+  
+  <Accordion title="Required for building images">
+    ### Build tools
+    
+    To build custom DevContainer images, you need:
+    
+    #### Docker
+    As described in the Docker template section above.
+    
+    #### DevContainer CLI
+    
+    Install the DevContainer CLI globally:
+    
+    ```bash
+    npm install -g @devcontainers/cli
+    ```
+    
+    Or using Bun:
+    
+    ```bash
+    bun add -g @devcontainers/cli
+    ```
+    
+    Verify installation:
+    
+    ```bash
+    devcontainer --version
+    ```
+    
+    #### Optional: GitHub token
+    
+    Set a GitHub token to avoid rate limits when fetching tool versions:
+    
+    ```bash
+    export GITHUB_TOKEN=ghp_your_token_here
+    ```
+    
+    Or use the `gh` CLI:
+    
+    ```bash
+    brew install gh
+    gh auth login
+    ```
+  </Accordion>
+  
+  <Accordion title="Optional: Resilient SSH (ET)">
+    ### EternalTerminal client
+    
+    For resilient SSH sessions, install the ET client on your local machine:
+    
+    <CodeGroup>
+    ```bash macOS (Homebrew)
+    brew install MisterTea/et/et
+    ```
+    
+    ```bash Debian/Ubuntu
+    sudo mkdir -m 0755 -p /etc/apt/keyrings
+    echo "deb [signed-by=/etc/apt/keyrings/et.gpg] https://mistertea.github.io/debian-et/debian-source/ $(grep VERSION_CODENAME /etc/os-release | cut -d= -f2) main" | sudo tee /etc/apt/sources.list.d/et.list
+    curl -sSL https://github.com/MisterTea/debian-et/raw/master/et.gpg | sudo tee /etc/apt/keyrings/et.gpg >/dev/null
+    sudo apt-get update
+    sudo apt-get install -y et
+    ```
+    
+    ```bash Arch Linux
+    yay -S eternalterminal
+    ```
+    </CodeGroup>
+    
+    Also install netcat:
+    
+    ```bash
+    # macOS
+    brew install netcat
+    
+    # Debian/Ubuntu
+    sudo apt-get install -y netcat-openbsd
+    
+    # Arch
+    sudo pacman -S openbsd-netcat
+    ```
+    
+    Verify installation:
+    
+    ```bash
+    et --version
+    nc -h
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Installing templates
+
+<Steps>
+  <Step title="Clone repository">
+    Clone the Hakim repository:
+    
+    ```bash
+    git clone https://github.com/shekohex/hakim.git
+    cd hakim
+    ```
+  </Step>
+  
+  <Step title="Choose template">
+    Navigate to the template directory:
+    
+    <Tabs>
+      <Tab title="Docker">
+        ```bash
+        cd coder/templates/hakim
+        ```
+      </Tab>
+      
+      <Tab title="Proxmox">
+        ```bash
+        cd coder/templates/hakim-proxmox
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+  
+  <Step title="Push template">
+    Push the template to your Coder deployment:
+    
+    ```bash
+    coder templates push hakim
+    ```
+    
+    <Note>
+      Ensure you're logged in to your Coder deployment first with `coder login https://your-coder-url.com`.
+    </Note>
+  </Step>
+  
+  <Step title="Verify template">
+    Verify the template was created:
+    
+    ```bash
+    coder templates list
+    ```
+    
+    You should see `hakim` in the output.
+  </Step>
+</Steps>
+
+## Building images
+
+Hakim provides prebuilt images at `ghcr.io/shekohex/hakim-*`, but you can build your own custom variants.
+
+### Build all images
+
+Use the build script to build all variants:
+
+```bash
+./scripts/build.sh
+```
+
+This builds:
+1. `hakim-base` - Base Debian image with core tooling
+2. `hakim-tooling` - Intermediate image with additional tools
+3. All variants: `hakim-php`, `hakim-dotnet`, `hakim-rust`, `hakim-js`, `hakim-elixir`, `hakim-android`
+
+<Note>
+  The build script uses Docker buildx with layer caching. First build takes 10-15 minutes; subsequent builds are much faster.
+</Note>
+
+### Build with custom registry
+
+Push images to your own registry:
+
+```bash
+./scripts/build.sh --registry registry.example.com/username --push
+```
+
+### Build with latest versions
+
+Fetch and build with the latest tool versions:
+
+```bash
+./scripts/build.sh --fetch-latest
+```
+
+This automatically fetches the latest versions of:
+- Coder CLI
+- code-server
+- Google Chrome for Testing
+
+<Warning>
+  Using `--fetch-latest` requires the `gh` CLI and will update version ARGs in the Dockerfile. Review changes before committing.
+</Warning>
+
+### Build specific variant
+
+Build only the base image and one variant:
+
+```bash
+# Build base first
+docker build -t hakim-base:latest devcontainers/base
+
+# Build tooling layer
+docker build --build-arg BASE_IMAGE=hakim-base:latest -t hakim-tooling:latest devcontainers/tooling
+
+# Build specific variant
+devcontainer build \
+  --workspace-folder devcontainers \
+  --config devcontainers/.devcontainer/images/php/.devcontainer/devcontainer.json \
+  --image-name hakim-php:latest .
+```
+
+### Build script options
+
+Full build script reference:
+
+| Option | Description |
+| :--- | :--- |
+| `--registry <value>` | Target image registry/namespace (default: ghcr.io/shekohex) |
+| `--cache-repo <repo>` | Registry cache repo (default: value/hakim-cache) |
+| `--cache-from-registry` | Enable registry cache import |
+| `--cache-to-registry` | Enable registry cache export |
+| `--no-registry-cache` | Disable registry cache import/export |
+| `--coder-version <version>` | Specify Coder CLI version to install |
+| `--code-version <version>` | Specify code-server version to install |
+| `--chrome-version <version>` | Specify Google Chrome version to install |
+| `--fetch-latest` | Fetch latest versions for all tools (requires gh CLI) |
+| `--push` | Push built images after local build |
+| `--builder <name>` | Use specific docker buildx builder |
+| `--registry-http` | Configure auto-created builder for HTTP/insecure registry |
+
+## Extending Hakim
+
+Create custom features and image variants to match your workflow.
+
+### Add a new feature
+
+<Steps>
+  <Step title="Create feature directory">
+    Create a directory under `devcontainers/.devcontainer/features/src/`:
+    
+    ```bash
+    mkdir -p devcontainers/.devcontainer/features/src/my-feature
+    cd devcontainers/.devcontainer/features/src/my-feature
+    ```
+  </Step>
+  
+  <Step title="Add metadata">
+    Create `devcontainer-feature.json`:
+    
+    ```json
+    {
+      "id": "my-feature",
+      "version": "1.0.0",
+      "name": "My Feature",
+      "description": "Installs my custom tooling",
+      "options": {
+        "version": {
+          "type": "string",
+          "default": "latest",
+          "description": "Version to install"
+        }
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Add installation script">
+    Create `install.sh`:
+    
+    ```bash
+    #!/bin/bash
+    set -euo pipefail
+    
+    VERSION="${VERSION:-latest}"
+    
+    echo "Installing my-feature version: $VERSION"
+    
+    # Use mise for version management when possible
+    mise use --global my-tool@"$VERSION"
+    
+    # Or install directly
+    curl -fsSL https://example.com/install.sh | bash -s -- "$VERSION"
+    
+    echo "my-feature installed successfully"
+    ```
+    
+    Make it executable:
+    
+    ```bash
+    chmod +x install.sh
+    ```
+  </Step>
+  
+  <Step title="Test feature">
+    Test the feature in isolation:
+    
+    ```bash
+    devcontainer features test \
+      --features my-feature \
+      --base-image debian:trixie-slim
+    ```
+  </Step>
+</Steps>
+
+### Add a new image variant
+
+<Steps>
+  <Step title="Create variant directory">
+    Create a directory under `devcontainers/.devcontainer/images/`:
+    
+    ```bash
+    mkdir -p devcontainers/.devcontainer/images/my-variant/.devcontainer
+    cd devcontainers/.devcontainer/images/my-variant/.devcontainer
+    ```
+  </Step>
+  
+  <Step title="Create devcontainer.json">
+    Create `devcontainer.json`:
+    
+    ```json
+    {
+      "name": "Hakim My Variant",
+      "image": "ghcr.io/shekohex/hakim-tooling:latest",
+      "features": {
+        "../../../features/src/my-feature": {
+          "version": "latest"
+        },
+        "../../../features/src/lazyvim": {}
+      },
+      "customizations": {
+        "vscode": {
+          "extensions": [
+            "my.extension"
+          ]
+        }
+      },
+      "remoteUser": "coder"
+    }
+    ```
+    
+    <Tip>
+      Always base on `hakim-tooling:latest` which includes all core tools. Reference features using relative paths: `../../../features/src/<feature>`.
+    </Tip>
+  </Step>
+  
+  <Step title="Build variant">
+    Build the new variant:
+    
+    ```bash
+    cd ~/hakim
+    ./scripts/build.sh
+    ```
+    
+    Or build just your variant:
+    
+    ```bash
+    devcontainer build \
+      --workspace-folder devcontainers \
+      --config devcontainers/.devcontainer/images/my-variant/.devcontainer/devcontainer.json \
+      --image-name hakim-my-variant:latest .
+    ```
+  </Step>
+  
+  <Step title="Update template">
+    Add your variant to the Coder template in `coder/templates/hakim/main.tf`:
+    
+    ```hcl
+    data "coder_parameter" "image_variant" {
+      # ... existing options ...
+      
+      option {
+        name        = "My Variant"
+        description = "My custom tooling stack"
+        value       = "my-variant"
+        icon        = "/icon/custom.svg"
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+## Resilient SSH setup
+
+Configure EternalTerminal for network-resilient SSH sessions.
+
+<Steps>
+  <Step title="Install ET client">
+    Install the ET client on your local machine (see [Prerequisites](#prerequisites)).
+  </Step>
+  
+  <Step title="Download proxy script">
+    Download the ProxyCommand helper script:
+    
+    ```bash
+    mkdir -p ~/.ssh/scripts ~/.ssh/coder-keys
+    curl -fsSL https://raw.githubusercontent.com/shekohex/hakim/main/scripts/coder-et-proxy.sh -o ~/.ssh/scripts/coder-et-proxy.sh
+    chmod 0755 ~/.ssh/scripts/coder-et-proxy.sh
+    chmod 700 ~/.ssh/scripts ~/.ssh/coder-keys
+    ```
+  </Step>
+  
+  <Step title="Configure SSH">
+    Add this to your `~/.ssh/config`:
+    
+    ```sshconfig
+    Host coder.* *.coder
+      User coder
+      IdentitiesOnly yes
+      IdentityFile ~/.ssh/coder-keys/%h/id_ed25519
+      StrictHostKeyChecking accept-new
+      UserKnownHostsFile ~/.ssh/coder_known_hosts
+      ProxyCommand ~/.ssh/scripts/coder-et-proxy.sh %h %p %r
+    ```
+  </Step>
+  
+  <Step title="Test connection">
+    Connect to a workspace:
+    
+    ```bash
+    ssh myworkspace.coder
+    ```
+    
+    The first connection will:
+    1. Generate an ed25519 key pair for the workspace
+    2. Add the public key to `~/.ssh/authorized_keys` in the workspace
+    3. Establish ET connection
+    4. Connect SSH through the ET tunnel
+  </Step>
+  
+  <Step title="Verify resilience">
+    Test the resilience:
+    
+    1. Connect to workspace: `ssh myworkspace.coder`
+    2. Start a long-running process: `top`
+    3. Disconnect WiFi or close laptop lid
+    4. Wait 10-30 seconds
+    5. Reconnect network
+    6. Observe session automatically resumes
+  </Step>
+</Steps>
+
+### ET configuration
+
+Optional environment variables for the proxy script:
+
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `CODER_ET_KEY_TTL_SECONDS` | Key rotation interval | `3600` |
+| `CODER_ET_KEYS_DIR` | Key storage location | `~/.ssh/coder-keys` |
+
+Example with custom TTL:
+
+```bash
+export CODER_ET_KEY_TTL_SECONDS=7200  # 2 hours
+ssh myworkspace.coder
+```
+
+## OpenCode configuration
+
+Configure OpenCode for AI-assisted development.
+
+### Get authentication credentials
+
+<Steps>
+  <Step title="Login locally">
+    Run OpenCode login on your local machine:
+    
+    ```bash
+    opencode login
+    ```
+    
+    Follow the prompts to authenticate with your provider (Anthropic, OpenAI, etc.).
+  </Step>
+  
+  <Step title="Copy auth.json">
+    Copy your auth credentials:
+    
+    ```bash
+    cat ~/.local/share/opencode/auth.json
+    ```
+    
+    Save this JSON for workspace creation.
+  </Step>
+  
+  <Step title="Optional: Create config.json">
+    Customize OpenCode behavior with a config.json:
+    
+    ```json
+    {
+      "$schema": "https://opencode.ai/config.json",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "temperature": 0.7,
+      "maxTokens": 4096
+    }
+    ```
+    
+    See [OpenCode config docs](https://opencode.ai/docs/config/) for all options.
+  </Step>
+</Steps>
+
+### Workspace integration
+
+When creating a workspace, paste your auth.json into the **OpenCode Auth JSON** parameter and optionally your config.json into **OpenCode Config JSON**.
+
+The workspace will automatically:
+- Start OpenCode server on port 4096
+- Create the `oca` CLI command
+- Register with Coder Tasks UI
+- Enable MCP task reporting
+
+### Using OpenCode
+
+Access OpenCode in three ways:
+
+<CodeGroup>
+```bash Web UI
+# Click "OpenCode" app in Coder dashboard
+# Or access directly:
+coder open your-workspace --app opencode
+```
+
+```bash CLI (in workspace)
+# Attach OpenCode CLI
+oca
+
+# Or use full command
+opencode attach http://localhost:4096 --dir .
+```
+
+```bash Tasks UI
+# Create task in Coder dashboard
+# OpenCode executes autonomously
+```
+</CodeGroup>
+
+## Production deployment
+
+### Image registry
+
+For production, push images to a private registry:
+
+```bash
+# Build and push to private registry
+./scripts/build.sh \
+  --registry registry.example.com/hakim \
+  --cache-to-registry \
+  --push
+
+# Update template to use private registry
+# Edit coder/templates/hakim/main.tf:
+resource "docker_container" "workspace" {
+  image = "registry.example.com/hakim/hakim-${data.coder_parameter.image_variant.value}:latest"
+  # ...
+}
+```
+
+### Template versioning
+
+Version your templates for safe updates:
+
+```bash
+# Push with version tag
+coder templates push hakim --version 1.0.0
+
+# Update to new version
+coder templates push hakim --version 1.1.0
+
+# Roll back if needed
+coder templates pull hakim --version 1.0.0
+```
+
+### Resource limits
+
+Enable resource limits in the template parameters:
+
+1. Set **Enable Resource Limits** to `true`
+2. Configure **Memory Limit (MB)** (e.g., `8192` for 8GB)
+3. Configure **CPU Limit** (e.g., `4` for 4 cores)
+
+Or set defaults in the template:
+
+```hcl
+data "coder_parameter" "enable_resource_limits" {
+  default = true
+}
+
+data "coder_parameter" "container_memory" {
+  default = 8192
+}
+
+data "coder_parameter" "container_cpus" {
+  default = "4"
+}
+```
+
+### Monitoring
+
+Hakim templates include built-in resource monitoring:
+
+- CPU usage (container and host)
+- Memory usage (container and host)
+- Disk usage (home directory)
+
+View metrics in the Coder workspace dashboard under the **Stats** tab.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Build fails with 'permission denied'">
+    Ensure Docker daemon is running and your user has permission:
+    
+    ```bash
+    # Add user to docker group (Linux)
+    sudo usermod -aG docker $USER
+    newgrp docker
+    
+    # Verify
+    docker ps
+    ```
+  </Accordion>
+  
+  <Accordion title="DevContainer CLI not found">
+    Install the DevContainer CLI globally:
+    
+    ```bash
+    npm install -g @devcontainers/cli
+    
+    # Or with Bun
+    bun add -g @devcontainers/cli
+    
+    # Verify
+    devcontainer --version
+    ```
+  </Accordion>
+  
+  <Accordion title="GitHub rate limit during build">
+    Set a GitHub token:
+    
+    ```bash
+    # Using gh CLI
+    gh auth login
+    
+    # Or export manually
+    export GITHUB_TOKEN=ghp_your_token_here
+    
+    # Build
+    ./scripts/build.sh
+    ```
+  </Accordion>
+  
+  <Accordion title="ET connection fails">
+    Verify prerequisites:
+    
+    ```bash
+    # Check et
+    et --version
+    
+    # Check nc
+    nc -h
+    
+    # Check coder
+    coder version
+    ```
+    
+    Check SSH config:
+    
+    ```bash
+    # Verify ProxyCommand is set
+    grep -A 5 'Host.*coder' ~/.ssh/config
+    ```
+    
+    Test manually:
+    
+    ```bash
+    # Test coder CLI access
+    coder ssh your-workspace
+    
+    # Then try ET SSH
+    ssh your-workspace.coder
+    ```
+  </Accordion>
+  
+  <Accordion title="Template push fails">
+    Ensure you're logged in:
+    
+    ```bash
+    # Login to Coder
+    coder login https://your-coder-url.com
+    
+    # Verify
+    coder whoami
+    ```
+    
+    Check template syntax:
+    
+    ```bash
+    cd coder/templates/hakim
+    terraform fmt -recursive
+    terraform validate
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get your first workspace running
+  </Card>
+  
+  <Card
+    title="Template reference"
+    icon="book"
+    href="/introduction#template-parameters"
+  >
+    Explore all template parameters
+  </Card>
+  
+  <Card
+    title="Coder documentation"
+    icon="arrow-up-right-from-square"
+    href="https://coder.com/docs"
+  >
+    Learn more about Coder platform
+  </Card>
+  
+  <Card
+    title="OpenCode documentation"
+    icon="arrow-up-right-from-square"
+    href="https://opencode.ai/docs"
+  >
+    Explore OpenCode AI agent features
+  </Card>
+</CardGroup>

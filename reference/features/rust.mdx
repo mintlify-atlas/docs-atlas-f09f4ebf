@@ -1,0 +1,100 @@
+---
+title: Rust
+description: Install Rust toolchain using Mise
+---
+
+Installs the Rust programming language toolchain using [Mise](https://mise.jdx.dev/) with support for version selection and rustup profile configuration.
+
+## Feature ID
+
+```
+rust
+```
+
+## Usage
+
+Add the feature to your `devcontainer.json`:
+
+```json
+{
+  "features": {
+    "../../../features/src/rust": {
+      "version": "1.93.0",
+      "profile": "default"
+    }
+  }
+}
+```
+
+## Options
+
+<ParamField path="version" type="string" default="1.93.0">
+  Select the Rust version to install.
+  
+  Supported values:
+  - `latest` - Latest stable release
+  - `1.93.0` - Rust 1.93.0
+  - `1.92.0` - Rust 1.92.0
+  - `1.91.0` - Rust 1.91.0
+  - Any specific version number
+</ParamField>
+
+<ParamField path="profile" type="string" default="minimal">
+  Select the rustup profile to use during installation.
+  
+  Available profiles:
+  - `minimal` - Only the core components (rustc, cargo, rustup)
+  - `default` - Minimal plus rust-std and rust-docs
+  - `complete` - All components including clippy, rustfmt, and more
+</ParamField>
+
+## What gets installed
+
+This feature:
+
+1. Installs Rust via Mise at the specified version
+2. Configures rustup with the selected profile
+3. Sets up Cargo and Rustup in `/usr/local/cargo` and `/usr/local/rustup`
+4. Creates symlinks in `/usr/local/bin` for common tools (rustc, cargo, rustfmt, clippy)
+5. Configures environment variables in `/etc/profile.d/rustup.sh`
+6. Sets appropriate permissions for multi-user access
+7. Verifies the installation
+
+## Environment variables
+
+The feature sets up:
+
+- `CARGO_HOME=/usr/local/cargo` - Cargo installation directory
+- `RUSTUP_HOME=/usr/local/rustup` - Rustup installation directory
+- `RUSTUP_INIT_ARGS=--profile {profile}` - Profile for rustup initialization
+- `MISE_YES=1` - Auto-confirms Mise prompts
+- `MISE_DATA_DIR=/usr/local/share/mise` - Mise data directory
+- `/usr/local/cargo/bin` added to `PATH`
+
+## Installed binaries
+
+The following binaries are symlinked to `/usr/local/bin`:
+
+- `rustc` - Rust compiler
+- `cargo` - Rust package manager
+- `rustup` - Rust toolchain installer
+- `rustfmt` - Code formatter
+- `cargo-fmt` - Cargo formatter integration
+- `cargo-clippy` - Linter integration
+- `clippy-driver` - Clippy driver
+
+## Dependencies
+
+This feature requires:
+
+- `ghcr.io/devcontainers/features/common-utils`
+- Mise feature (included in Hakim base image)
+
+## Verification
+
+After installation, verify Rust is working:
+
+```bash
+rustc --version
+cargo --version
+```

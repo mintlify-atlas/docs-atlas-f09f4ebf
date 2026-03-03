@@ -1,0 +1,99 @@
+---
+title: PHP image
+description: Laravel-focused workspace with PHP and JavaScript runtimes
+---
+
+The `hakim-php` image extends the tooling base with PHP 8.4, Laravel tooling, and essential PHP extensions. It's optimized for Laravel development with Node.js and Bun included.
+
+## Included runtimes
+
+This image inherits from `hakim-tooling`, which includes:
+
+<ParamField path="Node.js" type="string">
+  24.12.0 (LTS)
+</ParamField>
+
+<ParamField path="Bun" type="string">
+  1.3.9
+</ParamField>
+
+<ParamField path="node-gyp" type="string">
+  12.2.0
+</ParamField>
+
+<ParamField path="uv (Python package manager)" type="string">
+  0.9.24
+</ParamField>
+
+<ParamField path="Python" type="string">
+  3.12.12
+</ParamField>
+
+<ParamField path="OpenCode" type="string">
+  1.2.15
+</ParamField>
+
+## PHP runtime
+
+<ParamField path="PHP" type="string">
+  8.4
+</ParamField>
+
+<ParamField path="Composer" type="string">
+  Included
+</ParamField>
+
+Installed via the official DevContainers PHP feature.
+
+## PHP extensions
+
+Extensions are installed via PIE (PHP Installer for Extensions):
+
+| Extension | Version |
+| :--- | :--- |
+| phpredis | Latest |
+| apcu | Latest |
+| imagick | Latest |
+| swoole | Latest |
+| php-memcached | Latest |
+| igbinary | 3.2.17RC1 |
+| yaml (PECL) | Latest |
+| pcov (PECL) | Latest |
+| mongodb | Latest |
+| xdebug | Latest |
+| pcntl | Built-in |
+| sockets | Built-in |
+
+## Laravel tooling
+
+<ParamField path="Laravel Installer" type="string">
+  5.24.3
+</ParamField>
+
+The Laravel feature provides the official Laravel installer for scaffolding new projects.
+
+## Editor tooling
+
+<ParamField path="LazyVim" type="string">
+  Configured
+</ParamField>
+
+Pre-configured Neovim distribution with IDE-like features.
+
+## VS Code extensions
+
+The following extensions are pre-configured:
+
+- `DEVSENSE.composer-php-vscode` - Composer integration
+- `phpactor.vscode-phpactor` - PHP language server
+- `laravel.vscode-laravel` - Laravel support
+- `shufo.vscode-blade-formatter` - Blade template formatter
+
+## Base tooling
+
+Inherits all tools from the [base image](/reference/images/base), including:
+
+- Docker CLI, Compose, and Buildx
+- Coder agent and code-server
+- Chrome for Testing and ChromeDriver
+- Mise with common CLI tools (ripgrep, fd, fzf, etc.)

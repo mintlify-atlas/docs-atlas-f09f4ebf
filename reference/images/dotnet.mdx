@@ -1,0 +1,70 @@
+---
+title: .NET image
+description: .NET SDKs with JavaScript runtimes
+---
+
+The `hakim-dotnet` image provides both stable and preview .NET SDKs alongside Node.js and Bun for full-stack .NET development.
+
+## Included runtimes
+
+This image inherits from `hakim-tooling`, which includes:
+
+<ParamField path="Node.js" type="string">
+  24.12.0 (LTS)
+</ParamField>
+
+<ParamField path="Bun" type="string">
+  1.3.9
+</ParamField>
+
+<ParamField path="node-gyp" type="string">
+  12.2.0
+</ParamField>
+
+<ParamField path="uv (Python package manager)" type="string">
+  0.9.24
+</ParamField>
+
+<ParamField path="Python" type="string">
+  3.12.12
+</ParamField>
+
+<ParamField path="OpenCode" type="string">
+  1.2.15
+</ParamField>
+
+## .NET SDKs
+
+<ParamField path=".NET (stable)" type="string">
+  9.0
+</ParamField>
+
+<ParamField path=".NET (preview)" type="string">
+  10.0-preview
+</ParamField>
+
+Both versions are installed side-by-side, allowing you to target different framework versions or test against preview releases.
+
+## Editor tooling
+
+<ParamField path="LazyVim" type="string">
+  Configured
+</ParamField>
+
+Pre-configured Neovim distribution with IDE-like features.
+
+## VS Code extensions
+
+The following extensions are pre-configured:
+
+- `ms-dotnettools.csharp` - C# language support
+- `ms-dotnettools.csdevkit` - C# Dev Kit with solution management
+
+## Base tooling
+
+Inherits all tools from the [base image](/reference/images/base), including:
+
+- Docker CLI, Compose, and Buildx
+- Coder agent and code-server
+- Chrome for Testing and ChromeDriver
+- Mise with common CLI tools (ripgrep, fd, fzf, etc.)

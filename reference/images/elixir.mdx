@@ -1,0 +1,97 @@
+---
+title: Elixir image
+description: Elixir/Phoenix workspace with PostgreSQL client tools and JavaScript runtimes
+---
+
+The `hakim-elixir` image provides a complete Phoenix development environment with Elixir, Erlang, PostgreSQL tools, and JavaScript runtimes.
+
+## Included runtimes
+
+This image inherits from `hakim-tooling`, which includes:
+
+<ParamField path="Node.js" type="string">
+  24.12.0 (LTS)
+</ParamField>
+
+<ParamField path="Bun" type="string">
+  1.3.9
+</ParamField>
+
+<ParamField path="node-gyp" type="string">
+  12.2.0
+</ParamField>
+
+<ParamField path="uv (Python package manager)" type="string">
+  0.9.24
+</ParamField>
+
+<ParamField path="Python" type="string">
+  3.12.12
+</ParamField>
+
+<ParamField path="OpenCode" type="string">
+  1.2.15
+</ParamField>
+
+## Elixir runtime
+
+<ParamField path="Erlang" type="string">
+  28.3.1
+</ParamField>
+
+<ParamField path="Elixir" type="string">
+  1.19.5
+</ParamField>
+
+Both Erlang and Elixir are seeded in the user's home directory for immediate use.
+
+## Phoenix framework
+
+<ParamField path="Phoenix" type="string">
+  1.8.3
+</ParamField>
+
+The Phoenix installer is included and seeded in the user's home directory, enabling `mix phx.new` commands immediately.
+
+## Database tooling
+
+<ParamField path="PostgreSQL client tools" type="string">
+  17
+</ParamField>
+
+Includes `psql`, `pg_dump`, `pg_restore`, and other PostgreSQL client utilities for database management and migrations.
+
+## Editor tooling
+
+<ParamField path="LazyVim" type="string">
+  Configured
+</ParamField>
+
+Pre-configured Neovim distribution with IDE-like features.
+
+## VS Code extensions
+
+The following extensions are pre-configured:
+
+- `JakeBecker.elixir-ls` - Elixir language server
+- `phoenixframework.phoenix` - Phoenix framework support
+- `bradlc.vscode-tailwindcss` - Tailwind CSS IntelliSense
+- `dbaeumer.vscode-eslint` - ESLint integration
+- `esbenp.prettier-vscode` - Prettier code formatter
+
+## VS Code settings
+
+Pre-configured settings for Elixir and Phoenix development:
+
+- **Elixir files**: Auto-format on save, 2-space indentation
+- **Phoenix HEEX templates**: Auto-format on save with Elixir LS
+- **Emmet**: Enabled for HEEX and Elixir files with HTML completion
+
+## Base tooling
+
+Inherits all tools from the [base image](/reference/images/base), including:
+
+- Docker CLI, Compose, and Buildx
+- Coder agent and code-server
+- Chrome for Testing and ChromeDriver
+- Mise with common CLI tools (ripgrep, fd, fzf, etc.)
